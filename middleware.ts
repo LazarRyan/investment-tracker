@@ -1,0 +1,58 @@
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: any) {
+          res.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
+  const guestId = request.cookies.get('guest_id')?.value;
+
+  // Check auth condition
+  if (request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/transactions')) {
+    // Allow access if user is authenticated or in guest mode with valid guest ID
+    if (!session && (!isGuestMode || !guestId)) {
+      // Neither authenticated nor valid guest mode, redirect to login
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+  } else if (
+    session && // Only redirect if user is authenticated (not in guest mode)
+    (request.nextUrl.pathname.startsWith('/auth/signin') ||
+      request.nextUrl.pathname.startsWith('/auth/signup'))
+  ) {
+    // If logged in and trying to access auth pages, redirect to dashboard
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  return res;
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*', '/auth/:path*', '/transactions/:path*'],
+}; 

@@ -1,0 +1,1 @@
+-- This file is no longer needed as the RLS policies are already defined in 20240101000002_create_settings.sql
