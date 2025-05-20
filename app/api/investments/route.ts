@@ -206,10 +206,12 @@ export async function POST(request: Request) {
         {
           id: uuidv4(),
           symbol: investment.symbol,
+          name: investment.name,
           shares: investment.shares,
           purchase_price: investment.purchase_price,
           purchase_date: investment.purchase_date,
           notes: investment.notes,
+          sector: investment.sector,
           user_id: userId,
           portfolio_id: portfolioId,
           created_at: new Date().toISOString()
