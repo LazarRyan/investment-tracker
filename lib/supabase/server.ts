@@ -11,14 +11,49 @@ export const createClient = () => {
           getUser: async () => ({ data: { user: null }, error: null }),
         },
         from: () => ({
-          select: () => ({ data: [], error: null }),
-          insert: () => ({ data: null, error: null }),
-          delete: () => ({ data: null, error: null }),
-          upsert: () => ({ data: null, error: null }),
-          eq: () => ({ data: null, error: null }),
-          in: () => ({ data: null, error: null }),
-          order: () => ({ data: null, error: null }),
-          single: () => ({ data: null, error: null }),
+          select: () => ({
+            data: [], 
+            error: null,
+            eq: () => ({
+              data: [], 
+              error: null,
+              single: () => ({ data: null, error: null }),
+              order: () => ({
+                data: [], 
+                error: null,
+                limit: () => ({ data: [], error: null })
+              })
+            }),
+            order: () => ({
+              data: [], 
+              error: null,
+              limit: () => ({ data: [], error: null })
+            }),
+            single: () => ({ data: null, error: null })
+          }),
+          insert: () => ({
+            data: null, 
+            error: null,
+            select: () => ({
+              data: null,
+              error: null,
+              single: () => ({ data: null, error: null })
+            })
+          }),
+          delete: () => ({
+            data: null, 
+            error: null,
+            eq: () => ({ data: null, error: null })
+          }),
+          upsert: () => ({
+            data: null, 
+            error: null,
+            select: () => ({
+              data: null,
+              error: null,
+              single: () => ({ data: null, error: null })
+            })
+          }),
         }),
       };
     }
