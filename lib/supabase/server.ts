@@ -25,6 +25,14 @@ export const createClient = () => {
                 limit: () => ({ data: [], error: null })
               })
             }),
+            in: () => ({
+              data: [],
+              error: null,
+              order: () => ({
+                data: [],
+                error: null
+              })
+            }),
             order: () => ({
               data: [], 
               error: null,
