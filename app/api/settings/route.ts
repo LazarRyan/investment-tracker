@@ -55,12 +55,14 @@ export async function PUT(request: Request) {
       'portfolio_privacy'
     ] as const;
 
-    const validatedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
-      if (allowedFields.includes(key as any)) {
-        acc[key as keyof UserSettingsUpdate] = value;
+    type AllowedField = typeof allowedFields[number];
+    
+    const validatedUpdates = Object.entries(updates as Record<string, unknown>).reduce<UserSettingsUpdate>((acc, [key, value]) => {
+      if (allowedFields.includes(key as AllowedField)) {
+        acc[key as keyof UserSettingsUpdate] = value as any;
       }
       return acc;
-    }, {} as UserSettingsUpdate);
+    }, {});
 
     const { data, error } = await supabase
       .from('user_settings')
