@@ -13,6 +13,7 @@ export interface Investment {
   purchase_price: number;
   purchase_date: string;
   notes?: string;
+  sector?: string;
   created_at: string;
   updated_at: string;
 }
