@@ -9,6 +9,7 @@ export interface Investment {
   user_id: string;
   portfolio_id: string;
   symbol: string;
+  name?: string;
   shares: number;
   purchase_price: number;
   purchase_date: string;
