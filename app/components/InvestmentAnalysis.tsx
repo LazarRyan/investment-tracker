@@ -16,6 +16,9 @@ interface InvestmentAnalysisProps {
   investment: Investment & {
     currentPrice?: number;
     gainLossPercentage?: number;
+    gainLoss?: number;
+    totalValue?: number;
+    totalPortfolioValue?: number;
   };
 }
 
