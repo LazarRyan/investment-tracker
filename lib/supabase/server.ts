@@ -6,6 +6,20 @@ export const createClient = () => {
   try {
     // During build time, return a mock client
     if (process.env.NEXT_PHASE === 'phase-production-build') {
+      // Create a reusable filter builder object that supports chaining
+      const createFilterBuilder = () => ({
+        data: [],
+        error: null,
+        eq: () => createFilterBuilder(),
+        single: () => ({ data: null, error: null }),
+        order: () => ({
+          data: [],
+          error: null,
+          limit: () => ({ data: [], error: null })
+        }),
+        select: () => ({ data: null, error: null, single: () => ({ data: null, error: null }) })
+      });
+
       return {
         auth: {
           getSession: async () => ({ data: { session: null }, error: null }),
@@ -15,16 +29,7 @@ export const createClient = () => {
           select: () => ({
             data: [], 
             error: null,
-            eq: () => ({
-              data: [], 
-              error: null,
-              single: () => ({ data: null, error: null }),
-              order: () => ({
-                data: [], 
-                error: null,
-                limit: () => ({ data: [], error: null })
-              })
-            }),
+            eq: () => createFilterBuilder(),
             in: () => ({
               data: [],
               error: null,
