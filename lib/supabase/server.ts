@@ -41,6 +41,19 @@ export const createClient = () => {
               single: () => ({ data: null, error: null })
             })
           }),
+          update: () => ({
+            data: null,
+            error: null,
+            eq: () => ({
+              data: null,
+              error: null,
+              select: () => ({
+                data: null,
+                error: null,
+                single: () => ({ data: null, error: null })
+              })
+            })
+          }),
           delete: () => ({
             data: null, 
             error: null,
