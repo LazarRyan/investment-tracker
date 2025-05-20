@@ -16,9 +16,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
+    // Only create the client on the client side
+    if (typeof window !== 'undefined') {
+      const client = createClient();
+      setSupabase(client);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -32,16 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase]);
 
   const value = {
     user,
     loading,
     signIn: async (email: string, password: string) => {
+      if (!supabase) return { error: new Error('Supabase client not initialized') };
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error };
     },
     signUp: async (email: string, password: string) => {
+      if (!supabase) return { error: new Error('Supabase client not initialized') };
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -52,9 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     },
     signOut: async () => {
+      if (!supabase) return;
       await supabase.auth.signOut();
     },
     resetPassword: async (email: string) => {
+      if (!supabase) return { error: new Error('Supabase client not initialized') };
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });

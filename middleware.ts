@@ -16,33 +16,43 @@ export async function middleware(request: NextRequest) {
     }
 
     const res = NextResponse.next();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            res.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-          },
-          remove(name: string, options: any) {
-            res.cookies.set({
-              name,
-              value: '',
-              ...options,
-            });
-          },
-        },
-      }
-    );
+    let session = null;
 
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+          cookies: {
+            get(name: string) {
+              return request.cookies.get(name)?.value;
+            },
+            set(name: string, value: string, options: any) {
+              res.cookies.set({
+                name,
+                value,
+                ...options,
+              });
+            },
+            remove(name: string, options: any) {
+              res.cookies.set({
+                name,
+                value: '',
+                ...options,
+              });
+            },
+          },
+        }
+      );
+
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
+      }
+    } catch (error) {
+      console.warn('Error getting session:', error);
+    }
+
     const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
     const guestId = request.cookies.get('guest_id')?.value;
 
