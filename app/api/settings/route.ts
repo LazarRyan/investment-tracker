@@ -75,7 +75,7 @@ export async function PUT(request: Request) {
       .from('user_settings')
       .update(validatedUpdates)
       .eq('user_id', user.id)
-      .select()
+      .select('*')
       .single();
 
     if (error) {
