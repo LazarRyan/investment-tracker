@@ -1,18 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { Database } from '@/lib/types/supabase';
 
-interface UserSettings {
-  id: string;
-  user_id: string;
-  email_notifications: boolean;
-  price_alerts: boolean;
-  alert_threshold: number;
-  default_currency: string;
-  theme: 'light' | 'dark' | 'system';
-  portfolio_privacy: 'public' | 'private';
-  created_at: string;
-  updated_at: string;
-}
+type UserSettings = Database['public']['Tables']['user_settings']['Row'];
+type UserSettingsUpdate = Database['public']['Tables']['user_settings']['Update'];
 
 export async function GET() {
   try {
@@ -62,20 +53,23 @@ export async function PUT(request: Request) {
       'default_currency',
       'theme',
       'portfolio_privacy'
-    ];
+    ] as const;
 
     const validatedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
-      if (allowedFields.includes(key)) {
-        acc[key] = value;
+      if (allowedFields.includes(key as any)) {
+        acc[key as keyof UserSettingsUpdate] = value;
       }
       return acc;
-    }, {} as Partial<UserSettings>);
+    }, {} as UserSettingsUpdate);
 
     const { data, error } = await supabase
       .from('user_settings')
-      .update(validatedUpdates)
+      .update({ 
+        ...validatedUpdates,
+        updated_at: new Date().toISOString()
+      })
       .eq('user_id', user.id)
-      .select('*')
+      .select()
       .single();
 
     if (error) {

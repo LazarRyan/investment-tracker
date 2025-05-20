@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { Database } from '@/lib/types/supabase';
 
 export const createClient = () => {
   try {
@@ -65,32 +66,13 @@ export const createClient = () => {
 
     const cookieStore = cookies();
 
-    return createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
-            try {
-              return cookieStore.get(name)?.value;
-            } catch (error) {
-              // Handle cookie errors silently during build
-              return undefined;
-            }
-          },
-          set(name: string, value: string, options: any) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              // Handle cookie errors silently during build
-            }
-          },
-          remove(name: string, options: any) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch (error) {
-              // Handle cookie errors silently during build
-            }
+            return cookieStore.get(name)?.value;
           },
         },
       }
