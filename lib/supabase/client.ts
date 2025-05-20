@@ -1,8 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 export const createClient = () => {
+  // During build time or server-side rendering without proper env vars, return null
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Your project\'s URL and Key are required to create a Supabase client!\nCheck your Supabase project\'s API settings to find these values\nhttps://supabase.com/dashboard/project/_/settings/api');
+    console.warn('Supabase credentials not found. Please check your environment variables.');
+    return null;
   }
 
   return createBrowserClient(

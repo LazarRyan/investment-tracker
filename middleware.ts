@@ -4,6 +4,11 @@ import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   try {
+    // During build time, just proceed
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return NextResponse.next();
+    }
+
     // Ensure environment variables are available
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.warn('Supabase credentials not available');
