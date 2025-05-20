@@ -217,7 +217,7 @@ export default function InvestmentAnalysis({ investment }: InvestmentAnalysisPro
               </span>
             </div>
             <div className="prose prose-sm max-w-none">
-              {analysis.split('\n').map((line, lineIndex) => {
+              {analysis.content.split('\n').map((line, lineIndex) => {
                 // Headers (##)
                 if (line.startsWith('##')) {
               return (
