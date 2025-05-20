@@ -13,6 +13,7 @@ interface InvestmentWithMarketData extends Investment {
   totalValue?: number;
   gainLoss?: number;
   gainLossPercentage?: number;
+  sector?: string;
 }
 
 interface InvestmentPortfolioProps {
