@@ -21,39 +21,21 @@ async function generateAnalysis(params: {
   current_price: number;
   gain_loss_percentage: number;
 }) {
-  const { symbol, shares, purchase_price, current_price, gain_loss_percentage } = params;
-  
-  const prompt = `Analyze investment: ${symbol}, ${shares} shares, entry $${purchase_price}, current $${current_price}, performance ${gain_loss_percentage}%. Include: grade (A+ to D), risk (Low/Medium/High), technical analysis, fundamental assessment, portfolio impact, recommendations.`;
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`${process.env.ANALYSIS_SERVICE_URL}/api/analysis`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'x-api-key': process.env.ANALYSIS_SERVICE_API_KEY!
     },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a Wall Street analyst. Be concise and specific."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 500
-    })
+    body: JSON.stringify(params)
   });
 
   if (!response.ok) {
-    throw new Error('OpenAI API request failed');
+    throw new Error('Analysis service request failed');
   }
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  return data.analysis;
 }
 
 // GET analysis for a specific investment
