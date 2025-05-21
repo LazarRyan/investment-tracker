@@ -6,6 +6,29 @@
       "excludeFiles": "{**/*.md,**/*.d.ts,**/*.d.ts.map,**/*.test.js,**/*.spec.js,**/tests/**,**/__tests__/**,node_modules/@swc/core-*/**,node_modules/@esbuild/*/**,**/.git/**}"
     }
   },
+  "crons": [],
+  "buildCommand": "next build",
+  "installCommand": "npm install --omit=dev",
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ],
   "build": {
     "env": {
       "NEXT_TELEMETRY_DISABLED": "1"
