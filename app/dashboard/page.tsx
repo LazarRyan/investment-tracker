@@ -77,12 +77,44 @@ export default function Dashboard() {
         console.log('Market overview data:', data);
         
         // Filter to only show indices (not crypto)
-        const indices = data.filter((item: MarketIndex) => 
-          item.type === 'index' && ['S&P 500', 'NASDAQ', 'DOW'].includes(item.symbol)
-        );
+        const indices = data.filter((item: MarketIndex) => {
+          if (item.type !== 'index') return false;
+          
+          // Log each index to debug
+          console.log('Found index:', item.symbol, item.type);
+          
+          // Check if it's one of our target indices using various matching approaches
+          const isTargetIndex = 
+            // Direct comparison (exact match)
+            ['S&P 500', 'NASDAQ', 'DOW', 'S&P 500', 'Dow Jones', 'Dow'].includes(item.symbol) ||
+            // Case-insensitive partial match
+            item.symbol.toUpperCase().includes('S&P') || 
+            item.symbol.toUpperCase().includes('DOW') || 
+            item.symbol.toUpperCase().includes('NASDAQ') ||
+            item.symbol.toUpperCase().includes('JONES');
+            
+          return isTargetIndex;
+        });
         
-        setMarketData(indices);
-        setMarketDataError(null);
+        console.log('Filtered indices for display:', indices);
+        
+        if (indices.length > 0) {
+          setMarketData(indices);
+          setMarketDataError(null);
+        } else {
+          console.warn('No matching indices found in API response');
+          // If no indices matched our filter, still display the data if any indices exist
+          const anyIndices = data.filter((item: MarketIndex) => item.type === 'index');
+          
+          console.log('All available indices:', anyIndices);
+          
+          if (anyIndices.length > 0) {
+            console.log('Showing all available indices:', anyIndices);
+            setMarketData(anyIndices.slice(0, 3)); // Show up to 3 indices
+          } else {
+            throw new Error('No index data available');
+          }
+        }
       } catch (error) {
         console.error('Error fetching market data:', error);
         setMarketDataError('Failed to load market data');
