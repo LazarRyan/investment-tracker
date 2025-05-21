@@ -6,15 +6,14 @@ const nextConfig = {
     serverMinification: true,
     serverSourceMaps: false,
     optimizeCss: true,
-    optimizePackageImports: ['@supabase/ssr', 'openai'],
+    optimizePackageImports: ['@supabase/ssr'],
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
     outputFileTracingExcludes: {
       '*': [
         'node_modules/@swc/core-darwin-*/**/*',
         'node_modules/@swc/core-win32-*/**/*',
         'node_modules/@esbuild/win32-x64/**/*',
         'node_modules/@esbuild/darwin-*/**/*',
-        'node_modules/openai/dist/**/*.browser.js',
-        'node_modules/openai/dist/**/*.min.js',
         '.git/**',
         '**/*.test.js',
         '**/*.spec.js',
@@ -28,6 +27,17 @@ const nextConfig = {
         '**/umd/**'
       ]
     }
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.optimization = {
+        ...config.optimization,
+        minimize: true,
+        moduleIds: 'deterministic',
+        chunkIds: 'deterministic'
+      };
+    }
+    return config;
   }
 };
 

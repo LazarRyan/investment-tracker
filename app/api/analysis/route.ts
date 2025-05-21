@@ -1,5 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 // Set this API route to use Edge Runtime
@@ -24,22 +23,7 @@ async function generateAnalysis(params: {
 }) {
   const { symbol, shares, purchase_price, current_price, gain_loss_percentage } = params;
   
-  const prompt = `As a senior Wall Street investment analyst, provide a comprehensive analysis of this investment:
-
-INVESTMENT OVERVIEW
-Symbol: ${symbol}
-Position Size: ${shares} shares
-Entry Price: $${purchase_price}
-Current Price: $${current_price}
-Performance: ${gain_loss_percentage}%
-
-Provide a detailed analysis including:
-1. Investment Grade (A+ to D) with explanation
-2. Risk Rating (Low/Medium/High) with justification
-3. Technical Analysis
-4. Fundamental Assessment
-5. Portfolio Impact
-6. Clear Recommendations`;
+  const prompt = `Analyze investment: ${symbol}, ${shares} shares, entry $${purchase_price}, current $${current_price}, performance ${gain_loss_percentage}%. Include: grade (A+ to D), risk (Low/Medium/High), technical analysis, fundamental assessment, portfolio impact, recommendations.`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -48,11 +32,11 @@ Provide a detailed analysis including:
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: "You are a senior Wall Street investment analyst. Provide detailed analysis with specific numbers and clear recommendations."
+          content: "You are a Wall Street analyst. Be concise and specific."
         },
         {
           role: "user",
@@ -60,7 +44,7 @@ Provide a detailed analysis including:
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 500
     })
   });
 
@@ -74,25 +58,6 @@ Provide a detailed analysis including:
 
 // GET analysis for a specific investment
 export async function GET(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete({ name, ...options });
-        },
-      },
-    }
-  );
-
   try {
     const { searchParams } = new URL(request.url);
     const investmentId = searchParams.get('investment_id');
@@ -101,6 +66,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Investment ID is required' }, { status: 400 });
     }
 
+    const supabase = await createServerSupabaseClient();
     const { data: analysis, error } = await supabase
       .from('investment_analysis')
       .select('*')
@@ -118,25 +84,6 @@ export async function GET(request: Request) {
 
 // POST a new analysis
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete({ name, ...options });
-        },
-      },
-    }
-  );
-
   try {
     const { investment_id, symbol, shares, purchase_price, current_price, gain_loss_percentage } = await request.json();
 
@@ -148,7 +95,7 @@ export async function POST(request: Request) {
       gain_loss_percentage
     });
 
-    // Store the analysis in the database
+    const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
       .from('investment_analysis')
       .insert([
