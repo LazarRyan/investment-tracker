@@ -104,6 +104,57 @@ export async function POST(request: Request) {
   }, request);
 }
 
+// PATCH update an investment (for partial share sales)
+export async function PATCH(request: Request) {
+  return withAuth(async (supabase: SupabaseClient, userId: string, req: Request) => {
+    try {
+      const url = new URL(req.url);
+      const id = url.searchParams.get('id');
+      const updates = await req.json();
+
+      if (!id) {
+        return NextResponse.json({ error: 'Investment ID is required' }, { status: 400 });
+      }
+
+      // Verify the investment belongs to the user
+      const { data: existingInvestment, error: getError } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
+
+      if (getError || !existingInvestment) {
+        return NextResponse.json({ 
+          error: 'Investment not found or unauthorized' 
+        }, { status: 404 });
+      }
+
+      // Update the investment with new values
+      const { data: updatedInvestment, error: updateError } = await supabase
+        .from('investments')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      return NextResponse.json(updatedInvestment);
+    } catch (error) {
+      console.error('Error updating investment:', error);
+      return NextResponse.json({ 
+        error: 'Failed to update investment',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
+    }
+  }, request);
+}
+
 // DELETE an investment
 export async function DELETE(request: Request) {
   return withAuth(async (supabase: SupabaseClient, userId: string, req: Request) => {

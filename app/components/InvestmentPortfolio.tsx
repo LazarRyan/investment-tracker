@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Investment } from '../api/investments/route';
+import SellInvestmentForm from './SellInvestmentForm';
 
 interface MarketData {
   price: number;
@@ -24,6 +25,7 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const [investments, setInvestments] = useState<InvestmentWithMarketData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sellInvestment, setSellInvestment] = useState<InvestmentWithMarketData | null>(null);
 
   const fetchInvestments = async () => {
     try {
@@ -118,6 +120,19 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     };
   }, []); // Empty dependency array since we're using the interval for updates
 
+  const handleSellClick = (investment: InvestmentWithMarketData) => {
+    setSellInvestment(investment);
+  };
+
+  const handleSellSuccess = () => {
+    setSellInvestment(null);
+    loadInvestments();
+  };
+
+  const handleSellCancel = () => {
+    setSellInvestment(null);
+  };
+
   const handleDelete = async (investment: InvestmentWithMarketData) => {
     try {
       // Create a sell transaction
@@ -185,6 +200,18 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const totalGainLoss = investments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
   const totalInvested = investments.reduce((sum, inv) => sum + (inv.purchase_price * inv.shares), 0);
   const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+
+  // If the SellInvestmentForm is active, show it instead of the portfolio
+  if (sellInvestment) {
+    return (
+      <SellInvestmentForm
+        investment={sellInvestment}
+        currentPrice={sellInvestment.currentPrice}
+        onSuccess={handleSellSuccess}
+        onCancel={handleSellCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -287,74 +314,141 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
 
       {/* Investments Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Your Investments</h2>
+        <div className="sm:flex sm:items-center p-4 sm:justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">Your Investments</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {investments.length} {investments.length === 1 ? 'investment' : 'investments'} in your portfolio
+            </p>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gain/Loss</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {investments.map((investment) => (
-                <tr key={investment.id} 
-                    className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-900">{investment.symbol.charAt(0)}</span>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{investment.symbol}</div>
-                        <div className="text-sm text-gray-500">{investment.name || 'Stock'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{investment.shares}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${investment.purchase_price.toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${investment.currentPrice?.toFixed(2) || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${investment.totalValue?.toFixed(2) || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm ${investment.gainLoss && investment.gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${investment.gainLoss?.toFixed(2) || '-'}
-                      {investment.gainLossPercentage && (
-                        <span className="block text-xs">
-                          ({investment.gainLossPercentage.toFixed(2)}%)
-                        </span>
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="mt-2 flex flex-col">
+            <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+                <div className="overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Symbol
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Shares
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Purchase Price
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Current Price
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Total Value
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Gain/Loss
+                        </th>
+                        <th
+                          scope="col"
+                          className="relative px-3 py-3.5 text-right text-sm font-semibold text-gray-900"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {investments.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-10 text-center text-sm text-gray-500">
+                            <p>No investments found</p>
+                            <button
+                              onClick={onAddClick}
+                              className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-[#6495ED] bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6495ED]"
+                            >
+                              Add your first investment
+                            </button>
+                          </td>
+                        </tr>
+                      ) : (
+                        investments.map((investment) => (
+                          <tr key={investment.id}>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+                              {investment.symbol}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {investment.shares}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              ${investment.purchase_price.toFixed(2)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {investment.currentPrice ? (
+                                <>${investment.currentPrice.toFixed(2)}</>
+                              ) : (
+                                <span className="text-gray-400">Loading...</span>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {investment.totalValue ? (
+                                <>${investment.totalValue.toFixed(2)}</>
+                              ) : (
+                                <span className="text-gray-400">Loading...</span>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm">
+                              {investment.gainLoss !== undefined && investment.gainLossPercentage !== undefined ? (
+                                <div className="flex flex-col">
+                                  <span className={`${investment.gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {investment.gainLoss >= 0 ? '+' : ''}{investment.gainLoss.toFixed(2)} ({investment.gainLossPercentage.toFixed(2)}%)
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">Loading...</span>
+                              )}
+                            </td>
+                            <td className="relative whitespace-nowrap px-3 py-4 text-right text-sm font-medium">
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => handleSellClick(investment)}
+                                  className="text-red-600 hover:text-red-900 px-2 py-1 border border-gray-300 rounded-md"
+                                >
+                                  Sell
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(investment)}
+                                  className="text-gray-600 hover:text-gray-900 px-2 py-1 border border-gray-300 rounded-md"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(investment.purchase_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(investment);
-                      }}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Sell
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
