@@ -1,58 +1,58 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-// This is a fallback if the API call fails
-const mockStockData = {
-  AAPL: { 
-    symbol: 'AAPL', 
-    price: 191.28, 
-    change: 1.57, 
-    changePercent: 0.83,
-    name: 'Apple Inc.'
-  },
-  MSFT: { 
-    symbol: 'MSFT', 
-    price: 427.65, 
-    change: 3.18, 
-    changePercent: 0.75,
-    name: 'Microsoft Corporation'
-  },
-  GOOGL: { 
-    symbol: 'GOOGL', 
-    price: 175.98, 
-    change: 0.83, 
-    changePercent: 0.47,
-    name: 'Alphabet Inc.'
-  },
-  TSLA: {
-    symbol: 'TSLA',
-    price: 175.34,
-    change: -2.18,
-    changePercent: -1.23,
-    name: 'Tesla, Inc.'
-  },
-  AMZN: {
-    symbol: 'AMZN',
-    price: 178.75,
-    change: 1.25,
-    changePercent: 0.70,
-    name: 'Amazon.com, Inc.'
-  }
-};
+// Cache file paths - stored in the app's temporary directory
+const CACHE_DIR = path.join(process.cwd(), '.cache');
+const SYMBOL_CACHE_FILE = path.join(CACHE_DIR, 'market-data-symbol-cache.json');
+const TICKER_CACHE_FILE = path.join(CACHE_DIR, 'market-data-ticker-cache.json');
 
-// Fallback ticker data for the stock ticker component
-const tickerData = [
-  { symbol: 'S&P 500', price: 5218.75, change: 0.83, type: 'index' },
-  { symbol: 'NASDAQ', price: 16379.92, change: 0.75, type: 'index' },
-  { symbol: 'DOW', price: 39118.28, change: 0.47, type: 'index' },
-  { symbol: 'Bitcoin', price: 70356.12, change: 2.34, type: 'crypto' },
-  { symbol: 'Ethereum', price: 3450.78, change: 1.56, type: 'crypto' }
-];
+// Create cache directory if it doesn't exist
+try {
+  if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+  }
+} catch (error) {
+  console.error('Error creating cache directory:', error);
+}
+
+// Function to read cache from file
+function readCache(cacheFile: string) {
+  try {
+    if (fs.existsSync(cacheFile)) {
+      const cacheData = fs.readFileSync(cacheFile, 'utf8');
+      const cache = JSON.parse(cacheData);
+      // Check if cache is still valid (less than 24 hours old)
+      if (cache.timestamp && (Date.now() - cache.timestamp < 24 * 60 * 60 * 1000)) {
+        console.log(`Using cached data from ${cacheFile}`);
+        return cache.data;
+      }
+    }
+  } catch (error) {
+    console.error(`Error reading cache from ${cacheFile}:`, error);
+  }
+  return null;
+}
+
+// Function to write cache to file
+function writeCache(cacheFile: string, data: any) {
+  try {
+    const cacheData = {
+      timestamp: Date.now(),
+      data: data
+    };
+    fs.writeFileSync(cacheFile, JSON.stringify(cacheData), 'utf8');
+    console.log(`Cache written to ${cacheFile}`);
+  } catch (error) {
+    console.error(`Error writing cache to ${cacheFile}:`, error);
+  }
+}
 
 /**
  * Fetch market data from our Python FastAPI service
- * This connects to the analysis-service/api Python API service
+ * This connects to the analysis-service/api Python API service which uses both FMP and CoinGecko
  */
 export async function GET(request: Request) {
   try {
@@ -105,19 +105,21 @@ export async function GET(request: Request) {
         // Parse the response data
         const data = await response.json();
         console.log(`Successfully fetched data for ${symbol}:`, data);
+        
+        // Cache the successful response
+        const cachedData = { [symbol]: data };
+        writeCache(SYMBOL_CACHE_FILE, cachedData);
+        
         return NextResponse.json(data);
       }
       catch (error) {
         console.error(`Error fetching data for ${symbol}:`, error);
         
-        // Fall back to mock data if available
-        const upperSymbol = symbol.toUpperCase();
-        if (mockStockData[upperSymbol]) {
-          console.log(`Falling back to mock data for: ${upperSymbol}`);
-          return NextResponse.json({
-            price: mockStockData[upperSymbol].price,
-            change: mockStockData[upperSymbol].changePercent
-          });
+        // Try to use cached data for this symbol
+        const cachedData = readCache(SYMBOL_CACHE_FILE);
+        if (cachedData && cachedData[symbol]) {
+          console.log(`Using cached data for symbol: ${symbol}`);
+          return NextResponse.json(cachedData[symbol]);
         }
         
         return NextResponse.json({ error: `No data available for symbol: ${symbol}` }, { status: 404 });
@@ -153,14 +155,25 @@ export async function GET(request: Request) {
       // Parse the response data
       const data = await response.json();
       console.log(`Successfully fetched ticker data from Python API service`);
+      
+      // Cache the successful response
+      writeCache(TICKER_CACHE_FILE, data);
+      
       return NextResponse.json(data);
     }
     catch (error) {
       console.error(`Error fetching ticker data:`, error);
       
-      // Fall back to mock ticker data
-      console.log('Falling back to mock ticker data');
-      return NextResponse.json(tickerData);
+      // Try to use cached ticker data
+      const cachedData = readCache(TICKER_CACHE_FILE);
+      if (cachedData) {
+        console.log('Using cached ticker data');
+        return NextResponse.json(cachedData);
+      }
+      
+      // If no cached data is available, return an empty array with error message
+      console.error('No cached data available, returning empty dataset');
+      return NextResponse.json([], { status: 503 });
     }
   } 
   catch (error) {
@@ -169,6 +182,14 @@ export async function GET(request: Request) {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
     }
+    
+    // Try to use cached ticker data as last resort
+    const cachedData = readCache(TICKER_CACHE_FILE);
+    if (cachedData) {
+      console.log('Using cached ticker data due to general error');
+      return NextResponse.json(cachedData);
+    }
+    
     return NextResponse.json({ error: 'Failed to fetch market data' }, { status: 500 });
   }
 } 
