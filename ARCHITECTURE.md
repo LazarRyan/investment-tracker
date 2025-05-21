@@ -9,12 +9,17 @@
 - **State Management**: React Hooks
 - **API Integration**: REST APIs
 - **Real-time Updates**: Supabase Subscriptions
+- **Analysis Service**: Express.js Microservice with OpenAI Integration
 
 ## Project Structure
 ```
 investmentapp/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes for investments, transactions
+│   │   ├── analysis/      # Analysis route (forwards to microservice)
+│   │   ├── investments/   # Investment management endpoints
+│   │   ├── settings/      # User settings endpoints
+│   │   └── transactions/  # Transaction management endpoints
 │   ├── auth/              # Authentication pages (signin, signup, reset)
 │   ├── dashboard/         # Main dashboard
 │   ├── portfolio/         # Portfolio analysis
@@ -23,9 +28,17 @@ investmentapp/
 │   └── layout.tsx         # Root layout
 ├── lib/                   # Utility functions and configurations
 │   ├── supabase/         # Supabase client and utilities
+│   ├── middleware/       # Auth and API middleware
 │   ├── hooks/            # Custom React hooks
 │   └── types/            # TypeScript type definitions
+├── analysis-service/      # Investment Analysis Microservice
+│   ├── src/              # Service source code
+│   │   ├── routes/       # API route handlers
+│   │   └── index.js      # Service entry point
+│   └── package.json      # Service dependencies
 ├── middleware.ts         # Auth and routing middleware
+├── vercel.json          # Vercel deployment configuration
+├── next.config.js       # Next.js configuration
 └── public/              # Static assets
 ```
 
@@ -57,12 +70,21 @@ investmentapp/
 - Transaction history
 - Performance analytics
 
+### Investment Analysis Service
+- Dedicated microservice for analysis
+- OpenAI GPT integration
+- Secure API key authentication
+- Rate limiting and CORS protection
+- Deployed on Railway platform
+- Express.js with security middleware
+
 ### Data Management
 - RESTful API endpoints
 - Type-safe database queries
 - Real-time market data integration
 - Transaction logging
 - Error handling and validation
+- Microservice communication
 
 ## Security Considerations
 - Environment variables for sensitive data
@@ -72,6 +94,8 @@ investmentapp/
 - CORS configuration
 - Session management
 - Guest mode isolation
+- API key authentication for microservice
+- Rate limiting for analysis endpoints
 
 ## Performance Optimization
 - Static page generation where possible
@@ -80,6 +104,26 @@ investmentapp/
 - Caching strategies
 - Optimized database queries
 - Error boundary implementation
+- Edge runtime for compatible routes
+- Serverless function optimization
+- Memory allocation tuning
+- Build output optimization
+
+## Deployment Architecture
+### Main Application (Vercel)
+- Serverless functions for API routes
+- Edge runtime for compatible endpoints
+- Memory optimization per route type
+- Build output optimization
+- Security headers configuration
+- Regional deployment (IAD1)
+
+### Analysis Service (Railway)
+- Dedicated microservice deployment
+- Scalable container architecture
+- Environment-specific configurations
+- Health monitoring
+- Automatic deployments
 
 ## Development Practices
 - TypeScript for type safety
@@ -87,4 +131,6 @@ investmentapp/
 - Custom hooks for reusable logic
 - Consistent error handling
 - Comprehensive logging
-- Clean code architecture 
+- Clean code architecture
+- Microservice separation of concerns
+- Environment-based configurations 
