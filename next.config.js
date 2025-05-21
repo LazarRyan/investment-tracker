@@ -25,18 +25,16 @@ const nextConfig = {
       };
     }
 
+    // Exclude unnecessary files
+    if (isServer) {
+      config.externals = [...(config.externals || []), {
+        '@swc/core-linux-x64-gnu': 'commonjs @swc/core-linux-x64-gnu',
+        '@swc/core-linux-x64-musl': 'commonjs @swc/core-linux-x64-musl',
+        '@esbuild/linux-x64': 'commonjs @esbuild/linux-x64'
+      }];
+    }
+
     return config;
-  },
-  outputFileTracing: true,
-  outputFileTracingExcludes: {
-    '*': [
-      'node_modules/@swc/core-linux-x64-gnu',
-      'node_modules/@swc/core-linux-x64-musl',
-      'node_modules/@esbuild/linux-x64',
-      '.git/**',
-      '**/*.map',
-      '**/*.test.*'
-    ]
   }
 }
 
