@@ -24,7 +24,8 @@ const nextConfig = {
         '**/*.map',
         '**/jest/**',
         '**/esm/**',
-        '**/umd/**'
+        '**/umd/**',
+        '**/analysis-service/**'
       ]
     }
   },
@@ -34,7 +35,9 @@ const nextConfig = {
         ...config.optimization,
         minimize: true,
         moduleIds: 'deterministic',
-        chunkIds: 'deterministic'
+        chunkIds: 'deterministic',
+        concatenateModules: true,
+        mangleExports: true
       };
     }
     return config;
