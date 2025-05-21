@@ -1,49 +1,20 @@
 # Deployment Guide for Investment Tracker
 
-This application consists of three main components that need to be deployed:
+This application consists of two main components that need to be deployed:
 
 1. **Main Next.js Application**: The main web application deployed on Vercel
-2. **Analysis Service**: A Node.js service for AI-powered investment analysis
-3. **Market Data API**: A Python FastAPI service for fetching real-time market data
+2. **Backend Services**: A combined Node.js and Python service containing:
+   - **Analysis Service**: The Node.js Express service for AI-powered investment analysis
+   - **Market Data API**: The Python FastAPI service for fetching real-time market data
 
-## 1. Market Data API Deployment (Python FastAPI)
+## 1. Backend Services Deployment
+
+The backend now includes both the Analysis Service and the Market Data API in a single repository structure for easier deployment.
 
 ### Option 1: Deploy to Railway
 
 1. Push your code to GitHub
 2. Sign up for [Railway](https://railway.app/)
-3. Create a new project from your GitHub repository
-4. In the deployment settings, specify:
-   - Root directory: `/api`
-   - Start command: `python main.py`
-5. Set the following environment variables:
-   - `PORT`: `8000`
-   - `NODE_ENV`: `production`
-   - `API_KEY`: `56568d9f2686c1bc812e8b9f3e020bbdc90d4642371285cb8696a1939954f94d` (or your custom API key)
-6. Deploy the service and note the URL (e.g., `https://investment-data-service-production.up.railway.app`)
-
-### Option 2: Deploy to Heroku
-
-1. Install the Heroku CLI and log in
-2. Navigate to the `/api` directory
-3. Create a `Procfile` with the content: `web: python main.py`
-4. Initialize a git repository (if not already part of one)
-5. Create a Heroku app: `heroku create investment-data-service`
-6. Set environment variables:
-   ```
-   heroku config:set PORT=8000
-   heroku config:set NODE_ENV=production
-   heroku config:set API_KEY=56568d9f2686c1bc812e8b9f3e020bbdc90d4642371285cb8696a1939954f94d
-   ```
-7. Deploy: `git push heroku main`
-8. Note the URL provided by Heroku
-
-## 2. Analysis Service Deployment (Node.js)
-
-### Option 1: Deploy to Railway
-
-1. Push your code to GitHub
-2. Sign up for [Railway](https://railway.app/) (if not already done)
 3. Create a new project from your GitHub repository
 4. In the deployment settings, specify:
    - Root directory: `/analysis-service`
@@ -54,14 +25,22 @@ This application consists of three main components that need to be deployed:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `API_KEY`: `56568d9f2686c1bc812e8b9f3e020bbdc90d4642371285cb8696a1939954f94d` (or your custom API key)
    - `ALLOWED_ORIGIN`: `*` (or your specific Vercel domain)
-6. Deploy the service and note the URL (e.g., `https://investment-analysis-service-production.up.railway.app`)
+6. You'll need to set up a second Railway service for the Python API:
+   - In the same project, create a second service
+   - Root directory: `/analysis-service/api`
+   - Start command: `python main.py`
+   - Environment variables:
+     - `PORT`: `8000`
+     - `NODE_ENV`: `production`
+     - `API_KEY`: `56568d9f2686c1bc812e8b9f3e020bbdc90d4642371285cb8696a1939954f94d` (or your custom API key)
+7. Deploy the services and note the URLs for both services
 
 ### Option 2: Deploy to Heroku
 
 1. Navigate to the `/analysis-service` directory
 2. Create a `Procfile` with the content: `web: npm start`
 3. Initialize a git repository (if not already part of one)
-4. Create a Heroku app: `heroku create investment-analysis-service`
+4. Create a Heroku app for the Node.js service: `heroku create investment-analysis-service`
 5. Set environment variables:
    ```
    heroku config:set PORT=3001
@@ -71,9 +50,9 @@ This application consists of three main components that need to be deployed:
    heroku config:set ALLOWED_ORIGIN=*
    ```
 6. Deploy: `git push heroku main`
-7. Note the URL provided by Heroku
+7. For the Python API service, repeat the process in a new Heroku app but point to the `/analysis-service/api` subdirectory
 
-## 3. Main Application Deployment (Next.js on Vercel)
+## 2. Main Application Deployment (Next.js on Vercel)
 
 1. Push your code to GitHub
 2. Sign up for [Vercel](https://vercel.com/)

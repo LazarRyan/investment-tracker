@@ -54,6 +54,7 @@ const tickerData = [
 
 /**
  * Fetch market data from the Yahoo Finance API via our Python FastAPI service
+ * Note: The API is now located in the analysis-service/api directory and deployed as a separate service
  */
 export async function GET(request: Request) {
   try {
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
     const symbol = searchParams.get('symbol');
     
     // Get the analysis service URL and API key from environment variables
+    // This should point to the Python API service URL, which is now separate from the analysis service
     const apiServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:8000';
     const apiKey = process.env.ANALYSIS_SERVICE_API_KEY;
     
