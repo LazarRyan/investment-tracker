@@ -1,9 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-// Set this API route to use Edge Runtime
-export const runtime = 'edge';
-
 // Types
 interface InvestmentAnalysis {
   id: string;

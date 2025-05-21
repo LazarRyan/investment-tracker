@@ -3,11 +3,12 @@
     "app/api/analysis/route.ts": {
       "memory": 256,
       "maxDuration": 10,
-      "runtime": "edge"
+      "runtime": "@vercel/node@3.0.0"
     },
     "app/api/**/*": {
       "memory": 1024,
       "maxDuration": 10,
+      "runtime": "@vercel/node@3.0.0",
       "excludeFiles": "{**/*.md,**/*.d.ts,**/*.d.ts.map,**/*.test.js,**/*.spec.js,**/tests/**,**/__tests__/**,node_modules/@swc/core-*/**,node_modules/@esbuild/*/**,**/.git/**}"
     }
   },
