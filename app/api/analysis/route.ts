@@ -18,9 +18,13 @@ async function generateAnalysis(params: {
   current_price: number;
   gain_loss_percentage: number;
 }) {
-  console.log(`Calling analysis service at: ${process.env.ANALYSIS_SERVICE_URL}/api/analysis`);
+  // Use a dedicated environment variable for the Node.js analysis service
+  // Fall back to the general ANALYSIS_SERVICE_URL if not specified
+  const analysisServiceUrl = process.env.NODE_ANALYSIS_SERVICE_URL || process.env.ANALYSIS_SERVICE_URL;
+  console.log(`Calling analysis service at: ${analysisServiceUrl}/api/analysis`);
+  
   try {
-    const response = await fetch(`${process.env.ANALYSIS_SERVICE_URL}/api/analysis`, {
+    const response = await fetch(`${analysisServiceUrl}/api/analysis`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
