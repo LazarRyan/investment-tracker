@@ -42,6 +42,11 @@ export const createMockFrom = () => ({
     eq: () => ({
       data: [], 
       error: null,
+      eq: () => ({
+        data: [],
+        error: null,
+        single: () => ({ data: null, error: null })
+      }),
       single: () => ({ data: null, error: null }),
       order: () => ({
         data: [], 
