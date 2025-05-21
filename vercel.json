@@ -8,7 +8,7 @@
   },
   "crons": [],
   "buildCommand": "next build",
-  "installCommand": "npm install --omit=dev",
+  "installCommand": "npm install",
   "regions": ["iad1"],
   "headers": [
     {
