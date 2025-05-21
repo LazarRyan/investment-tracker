@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// This is a fallback if the API call fails - it uses the same mock data structure as before
+// This is a fallback if the API call fails
 const mockStockData = {
   AAPL: { 
     symbol: 'AAPL', 
@@ -41,20 +41,18 @@ const mockStockData = {
   }
 };
 
-// Ticker data for the stock ticker component
+// Fallback ticker data for the stock ticker component
 const tickerData = [
-  { symbol: 'AAPL', price: 191.28, change: 0.83, type: 'index' },
-  { symbol: 'MSFT', price: 427.65, change: 0.75, type: 'index' },
-  { symbol: 'GOOGL', price: 175.98, change: 0.47, type: 'index' },
-  { symbol: 'TSLA', price: 175.34, change: -1.23, type: 'index' },
-  { symbol: 'AMZN', price: 178.75, change: 0.70, type: 'index' },
-  { symbol: 'BTC', price: 70356.12, change: 2.34, type: 'crypto' },
-  { symbol: 'ETH', price: 3450.78, change: 1.56, type: 'crypto' }
+  { symbol: 'S&P 500', price: 5218.75, change: 0.83, type: 'index' },
+  { symbol: 'NASDAQ', price: 16379.92, change: 0.75, type: 'index' },
+  { symbol: 'DOW', price: 39118.28, change: 0.47, type: 'index' },
+  { symbol: 'Bitcoin', price: 70356.12, change: 2.34, type: 'crypto' },
+  { symbol: 'Ethereum', price: 3450.78, change: 1.56, type: 'crypto' }
 ];
 
 /**
- * Fetch market data from the Yahoo Finance API via our Python FastAPI service
- * Note: The API is now located in the analysis-service/api directory and deployed as a separate service
+ * Fetch market data from our Python FastAPI service
+ * This connects to the analysis-service/api Python API service
  */
 export async function GET(request: Request) {
   try {
@@ -62,8 +60,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     
-    // Get the analysis service URL and API key from environment variables
-    // This should point to the Python API service URL, which is now separate from the analysis service
+    // Get the API service URL and API key from environment variables
     const apiServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:8000';
     const apiKey = process.env.ANALYSIS_SERVICE_API_KEY;
     
@@ -83,10 +80,10 @@ export async function GET(request: Request) {
       try {
         console.log(`Fetching market data for symbol: ${symbol}`);
         
-        // Build the URL for the API request
+        // Call the Python API service
         const endpoint = `/api/stocks?symbol=${symbol}`;
         const fullUrl = `${apiServiceUrl}${endpoint}`;
-        console.log('Calling API:', fullUrl);
+        console.log('Calling Python API service:', fullUrl);
 
         // Make the API request with the API key
         const response = await fetch(fullUrl, {
@@ -94,6 +91,8 @@ export async function GET(request: Request) {
             'Content-Type': 'application/json',
             'x-api-key': apiKey
           },
+          // Add a short timeout to prevent hanging requests
+          signal: AbortSignal.timeout(5000)
         });
 
         // Check if the request was successful
@@ -127,12 +126,12 @@ export async function GET(request: Request) {
     
     // For the ticker (no specific symbol)
     try {
-      console.log(`Fetching all market data`);
+      console.log(`Fetching all market data from Python API service`);
       
-      // Build the URL for the API request
+      // Call the Python API service
       const endpoint = `/api/stocks`;
       const fullUrl = `${apiServiceUrl}${endpoint}`;
-      console.log('Calling API:', fullUrl);
+      console.log('Calling Python API service:', fullUrl);
 
       // Make the API request with the API key
       const response = await fetch(fullUrl, {
@@ -140,6 +139,8 @@ export async function GET(request: Request) {
           'Content-Type': 'application/json',
           'x-api-key': apiKey
         },
+        // Add a short timeout to prevent hanging requests
+        signal: AbortSignal.timeout(5000)
       });
 
       // Check if the request was successful
@@ -151,7 +152,7 @@ export async function GET(request: Request) {
 
       // Parse the response data
       const data = await response.json();
-      console.log(`Successfully fetched ticker data`);
+      console.log(`Successfully fetched ticker data from Python API service`);
       return NextResponse.json(data);
     }
     catch (error) {
