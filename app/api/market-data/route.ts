@@ -98,12 +98,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     
-    // Get the API service URL and API key from environment variables
-    const apiServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:8000';
+    // Use the dedicated Market Data API URL if available, otherwise fall back to the general API URL
+    const apiServiceUrl = process.env.MARKET_DATA_URL || process.env.ANALYSIS_SERVICE_URL || 'http://localhost:8000';
     const apiKey = process.env.ANALYSIS_SERVICE_API_KEY;
     
     // CRITICAL - Log the exact URL we're trying to connect to
-    console.log('🔴 DEBUGGING - Attempting to connect to API at:', apiServiceUrl);
+    console.log('🔴 DEBUGGING - Attempting to connect to Market Data API at:', apiServiceUrl);
     console.log('Environment: ' + process.env.NODE_ENV);
     console.log('API_KEY exists:', !!apiKey);
 
