@@ -7,7 +7,15 @@ export const createClient = () => {
       auth: {
         getSession: async () => ({ data: { session: null }, error: null }),
         getUser: async () => ({ data: { user: null }, error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } }, error: null }),
+        signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+        signUp: async () => ({ data: { user: null, session: null }, error: null }),
+        signOut: async () => ({ error: null }),
+        resetPasswordForEmail: async () => ({ data: {}, error: null }),
+        updateUser: async () => ({ data: { user: null }, error: null }),
+        onAuthStateChange: () => ({
+          data: { subscription: { unsubscribe: () => {} } },
+          error: null
+        })
       },
       from: () => ({
         select: () => ({
