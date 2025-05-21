@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/middleware/withAuth';
 import { NextResponse } from 'next/server';
-import type { Transaction } from '@/lib/types/transactions';
 
 export interface Transaction {
   id: string;
