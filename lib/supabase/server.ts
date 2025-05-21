@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
+import type { CookieOptions } from '@supabase/ssr';
 
 export interface AuthStatus {
   isGuest: boolean;
@@ -16,10 +17,12 @@ export async function createServerSupabaseClient() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => 
-          cookieStore.set({ name, value, ...options }),
-        remove: (name: string, options: any) => 
-          cookieStore.delete({ name, ...options }),
+        set: (name: string, value: string, options: CookieOptions) => {
+          cookieStore.set(name, value, options);
+        },
+        remove: (name: string, options: CookieOptions) => {
+          cookieStore.delete({ name, ...options });
+        },
       },
     }
   );
