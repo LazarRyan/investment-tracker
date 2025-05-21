@@ -3,12 +3,37 @@ const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin');
 
 const nextConfig = {
   reactStrictMode: true,
+  // Consolidated output configuration
   output: 'standalone',
   experimental: {
     serverMinification: true,
     serverSourceMaps: false,
     optimizeCss: true,
-    optimizePackageImports: ['@supabase/ssr']
+    optimizePackageImports: ['@supabase/ssr'],
+    // Add file tracing excludes with the correct property name
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-darwin-arm64',
+        'node_modules/@swc/core-darwin-x64',
+        'node_modules/@swc/core-win32-arm64-msvc',
+        'node_modules/@swc/core-win32-ia32-msvc',
+        'node_modules/@swc/core-win32-x64-msvc',
+        'node_modules/@esbuild/win32-x64',
+        'node_modules/@esbuild/darwin-x64',
+        'node_modules/@esbuild/darwin-arm64',
+        '.git/**',
+        '.github/**',
+        '**/*.test.js',
+        '**/*.spec.js',
+        '**/tests/**',
+        '**/__tests__/**',
+        '**/README.md',
+        '**/CHANGELOG.md',
+        '**/LICENSE',
+        '**/TS_EXCLUDED_FILES.txt',
+        '**/*.d.ts.map',
+      ]
+    }
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Add case sensitivity plugin
@@ -38,4 +63,4 @@ const nextConfig = {
   }
 }
 
-module.exports = nextConfig 
+module.exports = nextConfig
