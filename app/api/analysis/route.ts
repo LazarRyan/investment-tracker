@@ -18,21 +18,29 @@ async function generateAnalysis(params: {
   current_price: number;
   gain_loss_percentage: number;
 }) {
-  const response = await fetch(`${process.env.ANALYSIS_SERVICE_URL}/api/analysis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANALYSIS_SERVICE_API_KEY!
-    },
-    body: JSON.stringify(params)
-  });
+  console.log(`Calling analysis service at: ${process.env.ANALYSIS_SERVICE_URL}/api/analysis`);
+  try {
+    const response = await fetch(`${process.env.ANALYSIS_SERVICE_URL}/api/analysis`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANALYSIS_SERVICE_API_KEY!
+      },
+      body: JSON.stringify(params)
+    });
 
-  if (!response.ok) {
-    throw new Error('Analysis service request failed');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Analysis service error (${response.status}): ${errorText}`);
+      throw new Error(`Analysis service request failed with status ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.analysis;
+  } catch (error) {
+    console.error('Error calling analysis service:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.analysis;
 }
 
 // GET analysis for a specific investment
