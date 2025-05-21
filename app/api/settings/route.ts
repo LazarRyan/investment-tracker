@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { Database } from '@/lib/types/supabase';
 
@@ -45,7 +45,7 @@ function validateSettingsUpdate(updates: Record<string, unknown>): UserSettingsU
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -74,7 +74,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
