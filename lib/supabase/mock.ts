@@ -3,6 +3,15 @@ const createFilterBuilder = () => ({
   data: [],
   error: null,
   eq: () => createFilterBuilder(),
+  in: () => ({
+    data: [],
+    error: null,
+    order: () => ({
+      data: [],
+      error: null,
+      limit: () => ({ data: [], error: null })
+    })
+  }),
   single: () => ({ data: null, error: null }),
   order: () => ({
     data: [],
@@ -36,6 +45,15 @@ export const createMockFrom = () => ({
       single: () => ({ data: null, error: null }),
       order: () => ({
         data: [], 
+        error: null,
+        limit: () => ({ data: [], error: null })
+      })
+    }),
+    in: () => ({
+      data: [],
+      error: null,
+      order: () => ({
+        data: [],
         error: null,
         limit: () => ({ data: [], error: null })
       })
