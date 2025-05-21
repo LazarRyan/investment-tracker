@@ -43,7 +43,7 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
       console.log(`Fetching market data for ${symbol}...`);
-      const response = await fetch(`http://localhost:8000/api/stocks?symbol=${symbol}`);
+      const response = await fetch(`/api/market-data?symbol=${symbol}`);
       if (!response.ok) {
         throw new Error('Failed to fetch market data');
       }

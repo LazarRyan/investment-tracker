@@ -1,29 +1,18 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function POST() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete({ name, ...options });
-        },
-      },
-    }
-  );
+export const runtime = 'edge';
 
+export async function POST() {
   try {
+    const cookieStore = cookies();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
     // Generate a new guest ID
     const guestId = uuidv4();
     
@@ -40,20 +29,16 @@ export async function POST() {
       return NextResponse.json({ error: 'Failed to create guest session' }, { status: 500 });
     }
 
-    // Set cookies
-    cookieStore.set('guest_mode', 'true', {
+    // Set cookies with appropriate options for edge runtime
+    const cookieOptions = {
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       path: '/',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       secure: process.env.NODE_ENV === 'production',
-    });
+    };
 
-    cookieStore.set('guest_id', guestId, {
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      path: '/',
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-    });
+    cookieStore.set('guest_mode', 'true', cookieOptions);
+    cookieStore.set('guest_id', guestId, cookieOptions);
 
     return NextResponse.json({ success: true, guestId });
   } catch (error) {

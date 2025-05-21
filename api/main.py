@@ -1,22 +1,30 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 from yahooquery import Ticker
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 from datetime import datetime, timedelta
 import requests
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="Investment Data API", description="API for fetching stock and crypto data")
 
-# Add CORS middleware
+# Get API key from environment variable with fallback
+API_KEY = os.getenv("API_KEY", "default_api_key_for_development")
+
+# Add CORS middleware with more permissive settings for Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],  # More permissive for testing, can be restricted in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,6 +62,20 @@ CRYPTO = {
     "ADA-USD": "Cardano",
     "DOGE-USD": "Dogecoin"
 }
+
+# API Key dependency for routes that require authentication
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    # Skip API key verification in development mode
+    if os.getenv("NODE_ENV") == "development":
+        return True
+        
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="API Key header is missing")
+    
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    
+    return True
 
 def get_stock_data(symbol: str) -> Dict:
     try:
@@ -170,7 +192,7 @@ def get_crypto_data(symbol: str) -> Dict:
     return None
 
 @app.get("/api/stocks")
-async def get_stocks(symbol: str = None) -> Union[Dict, List[Dict]]:
+async def get_stocks(symbol: str = None, authenticated: bool = Depends(verify_api_key)) -> Union[Dict, List[Dict]]:
     try:
         # If a specific symbol is requested
         if symbol:
@@ -222,6 +244,12 @@ async def get_stocks(symbol: str = None) -> Union[Dict, List[Dict]]:
         logger.error(f"Error in get_stocks: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Add a health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port) 

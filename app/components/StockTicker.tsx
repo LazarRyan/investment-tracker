@@ -15,7 +15,7 @@ export default function StockTicker() {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/stocks');
+        const response = await fetch('/api/market-data');
         if (!response.ok) throw new Error('Failed to fetch market data');
         const data = await response.json();
         setMarketData(data);

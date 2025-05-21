@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   experimental: {
-    serverMinification: true,
+    serverMinification: false,
     serverSourceMaps: false,
     optimizeCss: true,
     optimizePackageImports: ['@supabase/ssr'],
@@ -25,19 +25,21 @@ const nextConfig = {
         '**/jest/**',
         '**/esm/**',
         '**/umd/**',
-        '**/analysis-service/**'
+        '**/analysis-service/**',
+        '**/node_modules/typescript/**',
+        '**/node_modules/@types/**',
+        '**/node_modules/tslib/**'
       ]
     }
   },
+  serverRuntimeConfig: {
+    PROJECT_ROOT: __dirname
+  },
   webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.optimization = {
-        ...config.optimization,
-        minimize: true,
-        moduleIds: 'deterministic',
-        chunkIds: 'deterministic',
-        concatenateModules: true,
-        mangleExports: true
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
       };
     }
     return config;

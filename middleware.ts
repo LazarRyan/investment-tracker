@@ -9,48 +9,45 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Ensure environment variables are available
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.warn('Supabase credentials not available');
-      return NextResponse.next();
-    }
-
     const res = NextResponse.next();
     let session = null;
 
-    try {
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-          cookies: {
-            get(name: string) {
-              return request.cookies.get(name)?.value;
+    // Only attempt to create Supabase client if we have credentials
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      try {
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          {
+            cookies: {
+              get(name: string) {
+                return request.cookies.get(name)?.value;
+              },
+              set(name: string, value: string, options: any) {
+                res.cookies.set({
+                  name,
+                  value,
+                  ...options,
+                });
+              },
+              remove(name: string, options: any) {
+                res.cookies.set({
+                  name,
+                  value: '',
+                  ...options,
+                });
+              },
             },
-            set(name: string, value: string, options: any) {
-              res.cookies.set({
-                name,
-                value,
-                ...options,
-              });
-            },
-            remove(name: string, options: any) {
-              res.cookies.set({
-                name,
-                value: '',
-                ...options,
-              });
-            },
-          },
-        }
-      );
+          }
+        );
 
-      if (supabase) {
-        const { data } = await supabase.auth.getSession();
-        session = data.session;
+        if (supabase) {
+          const { data } = await supabase.auth.getSession();
+          session = data.session;
+        }
+      } catch (error) {
+        console.warn('Error getting session:', error);
       }
-    } catch (error) {
-      console.warn('Error getting session:', error);
     }
 
     const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
