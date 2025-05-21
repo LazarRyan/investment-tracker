@@ -34,4 +34,7 @@ yarn-error.log*
 next-env.d.ts
 
 # analysis service
-analysis-service/ 
+analysis-service/
+
+# market service
+market-service/ 

@@ -18,8 +18,10 @@ async function generateAnalysis(params: {
   current_price: number;
   gain_loss_percentage: number;
 }) {
-  // Both services are under the same Railway URL
-  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL;
+  // Use dedicated analysis service URL
+  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3001';
+  const analysisApiKey = process.env.ANALYSIS_SERVICE_API_KEY;
+
   console.log(`Calling analysis service at: ${analysisServiceUrl}/api/analysis`);
   
   try {
@@ -27,7 +29,7 @@ async function generateAnalysis(params: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANALYSIS_SERVICE_API_KEY!
+        'x-api-key': analysisApiKey!
       },
       body: JSON.stringify(params)
     });
