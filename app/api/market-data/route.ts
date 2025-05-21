@@ -5,7 +5,10 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 
 // Cache file paths - stored in the app's temporary directory
-const CACHE_DIR = path.join(process.cwd(), '.cache');
+// On Vercel, we can only write to /tmp
+const CACHE_DIR = process.env.NODE_ENV === 'production' 
+  ? '/tmp/investment-tracker-cache' 
+  : path.join(process.cwd(), '.cache');
 const SYMBOL_CACHE_FILE = path.join(CACHE_DIR, 'market-data-symbol-cache.json');
 const TICKER_CACHE_FILE = path.join(CACHE_DIR, 'market-data-ticker-cache.json');
 
@@ -13,9 +16,11 @@ const TICKER_CACHE_FILE = path.join(CACHE_DIR, 'market-data-ticker-cache.json');
 try {
   if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
+    console.log(`Created cache directory at: ${CACHE_DIR}`);
   }
 } catch (error) {
   console.error('Error creating cache directory:', error);
+  // Don't fail the entire request if we can't create the cache directory
 }
 
 // Function to read cache from file
