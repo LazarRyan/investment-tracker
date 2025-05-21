@@ -18,9 +18,8 @@ async function generateAnalysis(params: {
   current_price: number;
   gain_loss_percentage: number;
 }) {
-  // Use a dedicated environment variable for the Node.js analysis service
-  // Fall back to the general ANALYSIS_SERVICE_URL if not specified
-  const analysisServiceUrl = process.env.NODE_ANALYSIS_SERVICE_URL || process.env.ANALYSIS_SERVICE_URL;
+  // Both services are under the same Railway URL
+  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL;
   console.log(`Calling analysis service at: ${analysisServiceUrl}/api/analysis`);
   
   try {
