@@ -9,5 +9,8 @@
     "env": {
       "NEXT_TELEMETRY_DISABLED": "1"
     }
-  }
+  },
+  "outputDirectory": ".next",
+  "cleanUrls": true,
+  "trailingSlash": false
 } 
