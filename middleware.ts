@@ -15,6 +15,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check if user is in guest mode
+  const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
+  const guestId = request.cookies.get('guest_id')?.value;
+
+  // If user is in valid guest mode, allow access to dashboard
+  if (isGuestMode && guestId && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.next();
+  }
+
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { session }, error } = await supabase.auth.getSession();

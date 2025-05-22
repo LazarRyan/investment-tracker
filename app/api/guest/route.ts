@@ -38,10 +38,18 @@ export async function POST() {
       secure: process.env.NODE_ENV === 'production',
     };
 
-    cookieStore.set('guest_mode', 'true', cookieOptions);
-    cookieStore.set('guest_id', guestId, cookieOptions);
+    // Create a new response
+    const response = NextResponse.json({ 
+      success: true, 
+      guestId,
+      redirectTo: '/dashboard'
+    });
 
-    return NextResponse.json({ success: true, guestId });
+    // Set cookies on the response
+    response.cookies.set('guest_mode', 'true', cookieOptions);
+    response.cookies.set('guest_id', guestId, cookieOptions);
+
+    return response;
   } catch (error) {
     console.error('Error in guest mode setup:', error);
     return NextResponse.json({ 

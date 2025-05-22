@@ -26,6 +26,17 @@ export default function Home() {
         // You might want to show an error message to the user here
         return;
       }
+
+      // Set a client-side cookie for immediate access
+      document.cookie = `guest_mode=true;path=/;max-age=86400`;
+      
+      // Get the guest ID from the response
+      const data = await response.json();
+      if (data.guestId) {
+        document.cookie = `guest_id=${data.guestId};path=/;max-age=86400`;
+      }
+      
+      // Navigate to the dashboard
       router.push('/dashboard');
     } catch (error) {
       console.error('Failed to set up guest mode:', error);
