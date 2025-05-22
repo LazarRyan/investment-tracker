@@ -49,18 +49,28 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     try {
       console.log(`Fetching market data for ${symbol}...`);
       const response = await fetch(`/api/market-data?symbol=${symbol}`);
+      
       if (!response.ok) {
+        if (response.status === 404) {
+          console.log(`No data available for ${symbol}`);
+          return null;
+        }
         throw new Error('Failed to fetch market data');
       }
+      
       const data = await response.json();
       console.log(`Received market data for ${symbol}:`, data);
       
-      // Update market hours state based on stock data
-      if (data && !data.type || data.type === 'index') {
-        setIsMarketHours(!!data.is_market_hours);
+      // Update market hours state based on the data
+      if (data.is_market_hours !== undefined) {
+        setIsMarketHours(data.is_market_hours);
       }
       
-      return data;
+      return {
+        price: data.price,
+        change: data.change,
+        is_market_hours: data.is_market_hours
+      };
     } catch (err) {
       console.error(`Error fetching market data for ${symbol}:`, err);
       return null;
@@ -83,7 +93,8 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
             currentPrice,
             totalValue,
             gainLoss,
-            gainLossPercentage
+            gainLossPercentage,
+            isMarketHours: marketData.is_market_hours
           });
 
           return {
@@ -95,7 +106,17 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
             isMarketHours: marketData.is_market_hours
           };
         }
-        return investment;
+        
+        // If no market data available, use purchase price as current price
+        const totalValue = investment.purchase_price * investment.shares;
+        return {
+          ...investment,
+          currentPrice: investment.purchase_price,
+          totalValue,
+          gainLoss: 0,
+          gainLossPercentage: 0,
+          isMarketHours: false
+        };
       })
     );
 
@@ -117,18 +138,18 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     console.log('Initial load...');
     loadInvestments();
 
-    // Refresh market data every 30 seconds during market hours, every 5 minutes outside
+    // Refresh market data every 5 minutes since we're using historical data
     const intervalId = setInterval(async () => {
-      console.log(`Running ${isMarketHours ? '30-second' : '5-minute'} update interval...`);
+      console.log('Running 5-minute update interval...');
       const data = await fetchInvestments();
       await updateInvestmentsWithMarketData(data);
-    }, isMarketHours ? 30000 : 300000);
+    }, 300000);
 
     return () => {
       console.log('Cleaning up interval...');
       clearInterval(intervalId);
     };
-  }, [isMarketHours]);
+  }, []); // Remove isMarketHours dependency since we're using historical data
 
   const handleSellClick = (investment: InvestmentWithMarketData) => {
     setSellInvestment(investment);

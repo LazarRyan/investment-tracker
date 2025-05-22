@@ -55,10 +55,10 @@ export default function StockTicker() {
     // Initial fetch
     fetchMarketData();
     
-    // Update every 30 seconds during market hours, every 5 minutes outside market hours
-    const interval = setInterval(fetchMarketData, isMarketHours ? 30000 : 300000);
+    // Update every 5 minutes since we're using historical data
+    const interval = setInterval(fetchMarketData, 300000);
     return () => clearInterval(interval);
-  }, [isMarketHours]); // Add isMarketHours as dependency
+  }, []); // Remove isMarketHours dependency since we're using historical data
 
   const formatPrice = (data: MarketData) => {
     if (data.type === 'crypto') {

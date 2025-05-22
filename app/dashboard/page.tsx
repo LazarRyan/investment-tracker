@@ -89,15 +89,27 @@ export default function Dashboard() {
         console.log('Dashboard: Filtered indices for market overview:', indices);
         
         if (indices.length > 0) {
+          // Sort indices by symbol to maintain consistent order
+          const sortedIndices = indices.sort((a, b) => a.symbol.localeCompare(b.symbol));
+          
           // Take the first 3 indices for display
-          setMarketData(indices.slice(0, 3));
+          setMarketData(sortedIndices.slice(0, 3));
           setMarketDataError(null);
           
           // Check if any of the indices are from market hours
-          setIsMarketHours(indices.some(index => index.is_market_hours));
+          const anyMarketHours = indices.some(index => index.is_market_hours);
+          setIsMarketHours(anyMarketHours);
           
-          // Store the last updated timestamp
-          localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
+          // Store the last updated timestamp and market hours state
+          const timestamp = new Date().toISOString();
+          localStorage.setItem('marketDataLastUpdated', timestamp);
+          localStorage.setItem('isMarketHours', String(anyMarketHours));
+          
+          console.log('Dashboard: Market data updated successfully', {
+            indicesCount: indices.length,
+            isMarketHours: anyMarketHours,
+            timestamp
+          });
         } else {
           console.warn('Dashboard: No indices found in API response');
           throw new Error('No index data available');
@@ -105,6 +117,12 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Dashboard: Error fetching market data:', error);
         setMarketDataError('Failed to load market data');
+        
+        // Try to use last known market hours state
+        const lastKnownMarketHours = localStorage.getItem('isMarketHours');
+        if (lastKnownMarketHours !== null) {
+          setIsMarketHours(lastKnownMarketHours === 'true');
+        }
       } finally {
         setMarketDataLoading(false);
       }
@@ -112,11 +130,11 @@ export default function Dashboard() {
 
     fetchMarketData();
     
-    // Refresh market data every 60 seconds during market hours, every 5 minutes outside
-    const intervalId = setInterval(fetchMarketData, isMarketHours ? 60000 : 300000);
+    // Refresh market data every 5 minutes since we're using historical data
+    const intervalId = setInterval(fetchMarketData, 300000);
     
     return () => clearInterval(intervalId);
-  }, [isMarketHours]);
+  }, []); // Remove isMarketHours dependency since we're using historical data
 
   return (
     <div className="min-h-screen bg-gray-50">
