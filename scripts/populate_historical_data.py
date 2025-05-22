@@ -28,8 +28,8 @@ dotenv_path = os.path.join(root_dir, '.env')
 load_dotenv(dotenv_path)
 
 # Supabase configuration
-supabase_url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if not supabase_url or not supabase_key:
     logger.error(f"Supabase credentials not found in {dotenv_path}")
