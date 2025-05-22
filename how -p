@@ -1,0 +1,137 @@
+[33mcommit b86df569aa8cd8cb268fbdd1844cdd1bd7763493[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Ryan Lazar <Lazar.ryan123@gmail.com>
+Date:   Thu May 22 18:07:06 2025 -0400
+
+    Fix duplicate portfolio summary and enhance historical data fetching
+
+[1mdiff --git a/app/components/InvestmentPortfolio.tsx b/app/components/InvestmentPortfolio.tsx[m
+[1mindex c8c14f8..da9c935 100644[m
+[1m--- a/app/components/InvestmentPortfolio.tsx[m
+[1m+++ b/app/components/InvestmentPortfolio.tsx[m
+[36m@@ -47,14 +47,31 @@[m [mexport default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP[m
+   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {[m
+     try {[m
+       console.log(`Fetching market data for ${symbol}...`);[m
+[32m+[m[32m      // First try to get current market data[m
+       const response = await internalFetch(`/api/market-data?symbol=${symbol}`);[m
+       [m
+[31m-      if (!response.ok) {[m
+[31m-        if (response.status === 404) {[m
+[31m-          console.log(`No data available for ${symbol}`);[m
+[32m+[m[32m      // If no current data available, fall back to historical data[m
+[32m+[m[32m      if (!response.ok || response.status === 404) {[m
+[32m+[m[32m        console.log(`No current data available for ${symbol}, fetching historical data...`);[m
+[32m+[m[32m        const historicalResponse = await internalFetch(`/api/historical/${symbol}?limit=1`);[m
+[32m+[m[41m        [m
+[32m+[m[32m        if (!historicalResponse.ok) {[m
+[32m+[m[32m          console.log(`No historical data available for ${symbol}`);[m
+           return null;[m
+         }[m
+[31m-        throw new Error('Failed to fetch market data');[m
+[32m+[m[41m        [m
+[32m+[m[32m        const historicalData = await historicalResponse.json();[m
+[32m+[m[32m        if (Array.isArray(historicalData) && historicalData.length > 0) {[m
+[32m+[m[32m          const latestData = historicalData[0];[m
+[32m+[m[32m          console.log(`Received historical data for ${symbol}:`, latestData);[m
+[32m+[m[41m          [m
+[32m+[m[32m          return {[m
+[32m+[m[32m            price: latestData.price,[m
+[32m+[m[32m            change: latestData.change_percentage || 0,[m
+[32m+[m[32m            is_market_hours: latestData.is_market_hours[m
+[32m+[m[32m          };[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return null;[m
+       }[m
+       [m
+       const data = await response.json();[m
+[1mdiff --git a/app/dashboard/page.tsx b/app/dashboard/page.tsx[m
+[1mindex effa2c2..fd3b30e 100644[m
+[1m--- a/app/dashboard/page.tsx[m
+[1m+++ b/app/dashboard/page.tsx[m
+[36m@@ -24,7 +24,6 @@[m [mexport default function Dashboard() {[m
+   const [marketDataLoading, setMarketDataLoading] = useState(true);[m
+   const [marketDataError, setMarketDataError] = useState<string | null>(null);[m
+   const [isMarketHours, setIsMarketHours] = useState<boolean>(false);[m
+[31m-  const [portfolioSummary, setPortfolioSummary] = useState<any>(null);[m
+   const supabase = createClient();[m
+   const router = useRouter();[m
+ [m
+[36m@@ -70,23 +69,17 @@[m [mexport default function Dashboard() {[m
+     const fetchData = async () => {[m
+       setMarketDataLoading(true);[m
+       try {[m
+[31m-        // Fetch market data[m
+[32m+[m[32m        // Fetch market data only[m
+         const marketResponse = await internalFetch('/api/market-data');[m
+         if (marketResponse.data) {[m
+           setMarketData(marketResponse.data);[m
+           localStorage.setItem('marketDataLastUpdated', new Date().toISOString());[m
+         }[m
+         [m
+[31m-        // Fetch portfolio summary[m
+[31m-        const summaryResponse = await internalFetch('/api/portfolio/summary');[m
+[31m-        if (summaryResponse.data) {[m
+[31m-          setPortfolioSummary(summaryResponse.data);[m
+[31m-        }[m
+[31m-        [m
+         setMarketDataLoading(false);[m
+         setMarketDataError(null);[m
+       } catch (error) {[m
+[31m-        console.error('Error fetching dashboard data:', error);[m
+[32m+[m[32m        console.error('Error fetching market data:', error);[m
+         setMarketDataError('Failed to load market data');[m
+         setMarketDataLoading(false);[m
+       }[m
+[36m@@ -251,114 +244,6 @@[m [mexport default function Dashboard() {[m
+             </div>[m
+           </div>[m
+ [m
+[31m-          {/* Portfolio Summary */}[m
+[31m-          <div className="mb-8">[m
+[31m-            <div className="flex items-center justify-between mb-4">[m
+[31m-              <h2 className="text-lg font-semibold text-gray-900">Portfolio Summary</h2>[m
+[31m-            </div>[m
+[31m-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">[m
+[31m-              {/* Portfolio Value */}[m
+[31m-              <div className="bg-white rounded-lg shadow p-4">[m
+[31m-                <div className="flex items-center justify-between">[m
+[31m-                  <div>[m
+[31m-                    <h3 className="text-sm font-medium text-gray-500">Portfolio Value</h3>[m
+[31m-                    <p className="mt-2 text-3xl font-semibold text-gray-900">[m
+[31m-                      ${marketDataLoading ? "..." : portfolioSummary?.portfolioValue.toFixed(2) || "0.00"}[m
+[31m-                    </p>[m
+[31m-                  </div>[m
+[31m-                  <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">[m
+[31m-                    <svg className="h-6 w-6 text-[#6495ED]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">[m
+[31m-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.171-.879-1.171-2.303 0-3.182C10.582 7.759 11.35 7.54 12 7.54c.725 0 1.45.22 2.003.659" />[m
+[31m-                    </svg>[m
+[31m-                  </div>[m
+[31m-                </div>[m
+[31m-                <div className="mt-4">[m
+[31m-                  <div className="flex items-center">[m
+[31m-                    <span className="text-sm text-gray-500">Day Change:</span>[m
+[31m-                    <span className={`ml-2 text-sm font-medium ${(portfolioSummary?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>[m
+[31m-                      ${marketDataLoading ? "..." : Math.abs(portfolioSummary?.dayChange || 0).toFixed(2)} ({marketDataLoading ? "..." : (portfolioSummary?.dayChangePercentage || 0).toFixed(2)}%)[m
+[31m-                    </span>[m
+[31m-                  </div>[m
+[31m-                </div>[m
+[31m-              </div>[m
+[31m-[m
+[31m-              {/* Total Gain/Loss */}[m
+[31m-              <div className="bg-white rounded-lg shadow p-4">[m
+[31m-                <div className="flex items-center justify-between">[m
+[31m-                  <div>[m
+[31m-                    <h3 className="text-sm font-medium text-gray-500">Total Gain/Loss</h3>[m
+[31m-                    <p className={`mt-2 text-3xl font-semibold ${(portfolioSummary?.totalGainLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>[m
+[31m-                      ${marketDataLoading ? "..." : Math.abs(portfolioSummary?.totalGainLoss || 0).toFixed(2)}[m
+[31m-                    </p>[m
+[31m-                  </div>[m
+[31m-                  <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center">[m
+[31m-                    <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">[m
+[31m-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />[m
+[31m-                    </svg>[m
+[31m-                  </div>[m
+[31m-                </div>[m
+[31m-                <div className="mt-4">[m
+[31m-                  <div className="flex items-center">[m
+[31

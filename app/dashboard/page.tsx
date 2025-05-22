@@ -19,6 +19,7 @@ interface MarketIndex {
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [marketData, setMarketData] = useState<MarketIndex[]>([]);
   const [marketDataLoading, setMarketDataLoading] = useState(true);
@@ -30,19 +31,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        setIsGuest(false);
-        Cookies.remove('guest_mode');
-      } else {
-        const isGuestMode = Cookies.get('guest_mode') === 'true';
-        if (isGuestMode) {
-          setIsGuest(true);
-          Cookies.set('guest_mode', 'true', { expires: 1 });
+      setLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUser(user);
+          setIsGuest(false);
+          Cookies.remove('guest_mode');
         } else {
-          router.push('/');
+          const isGuestMode = Cookies.get('guest_mode') === 'true';
+          if (isGuestMode) {
+            setIsGuest(true);
+            Cookies.set('guest_mode', 'true', { expires: 1 });
+          } else {
+            router.push('/auth/signin');
+            return;
+          }
         }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        router.push('/auth/signin');
+        return;
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -53,7 +64,7 @@ export default function Dashboard() {
         Cookies.remove('guest_mode');
         setUser(null);
         setIsGuest(false);
-        router.push('/');
+        router.push('/auth/signin');
       } else if (session?.user) {
         setUser(session.user);
         setIsGuest(false);
@@ -67,38 +78,53 @@ export default function Dashboard() {
 
   // Fetch market data and portfolio summary from our API service
   useEffect(() => {
-    const fetchData = async () => {
-      setMarketDataLoading(true);
-      try {
-        // Fetch market data
-        const marketResponse = await internalFetch('/api/market-data');
-        if (marketResponse.data) {
-          setMarketData(marketResponse.data);
-          localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
+    // Only fetch data if user is authenticated or in guest mode
+    if (!loading && (user || isGuest)) {
+      const fetchData = async () => {
+        setMarketDataLoading(true);
+        try {
+          // Fetch market data
+          const marketResponse = await internalFetch('/api/market-data');
+          if (marketResponse.data) {
+            setMarketData(marketResponse.data);
+            localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
+          }
+          
+          // Fetch portfolio summary
+          const summaryResponse = await internalFetch('/api/portfolio/summary');
+          if (summaryResponse.data) {
+            setPortfolioSummary(summaryResponse.data);
+          }
+          
+          setMarketDataLoading(false);
+          setMarketDataError(null);
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+          setMarketDataError('Failed to load market data');
+          setMarketDataLoading(false);
         }
-        
-        // Fetch portfolio summary
-        const summaryResponse = await internalFetch('/api/portfolio/summary');
-        if (summaryResponse.data) {
-          setPortfolioSummary(summaryResponse.data);
-        }
-        
-        setMarketDataLoading(false);
-        setMarketDataError(null);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setMarketDataError('Failed to load market data');
-        setMarketDataLoading(false);
-      }
-    };
+      };
 
-    fetchData();
-    
-    // Refresh data every 5 minutes
-    const intervalId = setInterval(fetchData, 300000);
-    
-    return () => clearInterval(intervalId);
-  }, []); // No dependencies needed
+      fetchData();
+      
+      // Refresh data every 5 minutes
+      const intervalId = setInterval(fetchData, 300000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [user, isGuest, loading]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#6495ED]"></div>
+          <p className="mt-4 text-lg text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,6 +190,14 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Dashboard Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Investment Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Track and manage your investment portfolio
+            </p>
+          </div>
+
           {/* Market Overview */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -199,9 +233,12 @@ export default function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                     </svg>
                     <p className="text-sm text-red-600 font-medium">{marketDataError}</p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Please try refreshing the page. If the problem persists, the market data service may be temporarily unavailable.
-                    </p>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                    >
+                      Retry
+                    </button>
                   </div>
                 </div>
               ) : marketData.length > 0 ? (
@@ -244,7 +281,12 @@ export default function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
                     </svg>
                     <p className="text-sm text-gray-700 font-medium">No market data available</p>
-                    <p className="text-xs text-gray-500 mt-2">Market data could not be loaded at this time.</p>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      Retry
+                    </button>
                   </div>
                 </div>
               )}
@@ -263,7 +305,7 @@ export default function Dashboard() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Portfolio Value</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      ${marketDataLoading ? "..." : portfolioSummary?.portfolioValue.toFixed(2) || "0.00"}
+                      ${marketDataLoading ? "..." : portfolioSummary?.portfolioValue?.toFixed(2) || "0.00"}
                     </p>
                   </div>
                   <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">
@@ -313,7 +355,7 @@ export default function Dashboard() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Total Invested</h3>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      ${marketDataLoading ? "..." : portfolioSummary?.totalInvested.toFixed(2) || "0.00"}
+                      ${marketDataLoading ? "..." : portfolioSummary?.totalInvested?.toFixed(2) || "0.00"}
                     </p>
                   </div>
                   <div className="h-12 w-12 rounded-full bg-purple-50 flex items-center justify-center">
