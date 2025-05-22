@@ -26,7 +26,8 @@ export default function VerifyEmail() {
         return;
       }
 
-      const { error } = await supabase.auth.resendSignUp({
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
         email: user.email,
       });
 

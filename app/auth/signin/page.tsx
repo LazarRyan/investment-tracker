@@ -33,7 +33,8 @@ export default function SignIn() {
         // Check if email is verified
         if (!data.user.email_confirmed_at) {
           // Send another verification email
-          await supabase.auth.resendSignUp({
+          await supabase.auth.resend({
+            type: 'signup',
             email: email,
           });
           router.push('/auth/verify-email');
