@@ -112,17 +112,67 @@ async function getLatestHistoricalData(symbol: string) {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
+    // Determine if it's a crypto symbol
+    const isCrypto = Object.keys(CRYPTO).includes(symbol.toLowerCase());
+    
     return {
-      symbol: data[0].symbol,
+      symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] : (INDICES[data[0].symbol] || data[0].symbol),
       price: data[0].price,
       change: data[0].change_percentage,
       is_market_hours: data[0].is_market_hours,
       timestamp: data[0].timestamp,
-      type: 'index'
+      type: isCrypto ? 'crypto' : 'index'
     };
   } catch (error) {
     console.error('Error fetching historical data:', error);
     return null;
+  }
+}
+
+async function getMultipleHistoricalData(symbols: string[]) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials not configured');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get the latest data point for each symbol
+    const { data, error } = await supabase
+      .from('historical_prices')
+      .select('*')
+      .in('symbol', symbols.map(s => s.toUpperCase()))
+      .order('timestamp', { ascending: false });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    // Get the most recent entry for each symbol
+    const latestBySymbol = new Map();
+    data.forEach(entry => {
+      if (!latestBySymbol.has(entry.symbol) || 
+          new Date(entry.timestamp) > new Date(latestBySymbol.get(entry.symbol).timestamp)) {
+        latestBySymbol.set(entry.symbol, entry);
+      }
+    });
+
+    return Array.from(latestBySymbol.values()).map(entry => {
+      const isCrypto = Object.keys(CRYPTO).includes(entry.symbol.toLowerCase());
+      return {
+        symbol: isCrypto ? CRYPTO[entry.symbol.toLowerCase()] : (INDICES[entry.symbol] || entry.symbol),
+        price: entry.price,
+        change: entry.change_percentage,
+        is_market_hours: entry.is_market_hours,
+        timestamp: entry.timestamp,
+        type: isCrypto ? 'crypto' : 'index'
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching multiple historical data:', error);
+    return [];
   }
 }
 
@@ -194,7 +244,6 @@ export async function GET(request: Request) {
 
     // If a specific symbol is requested
     if (symbol) {
-      // First try to get from historical data
       const historicalData = await getLatestHistoricalData(symbol);
       if (historicalData) {
         return new Response(JSON.stringify(historicalData), {
@@ -202,217 +251,28 @@ export async function GET(request: Request) {
         });
       }
 
-      // If no historical data, fall back to API call
-      try {
-        console.log(`Fetching market data for symbol: ${symbol}`);
-        
-        // Call the Python API service
-        const endpoint = `/api/stocks?symbol=${symbol}`;
-        const fullUrl = `${marketDataUrl}${endpoint}`;
-        console.log('Calling Python API service:', fullUrl);
-
-        // Make the API request with the API key
-        const response = await fetch(fullUrl, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': marketDataApiKey
-          },
-          // Add a short timeout to prevent hanging requests
-          signal: AbortSignal.timeout(5000)
-        });
-
-        // Log detailed response information for debugging
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-        // Check if the request was successful
-        if (!response.ok) {
-          // Try to read the error response as text
-          let errorText;
-          try {
-            errorText = await response.text();
-          } catch (textError) {
-            errorText = 'Could not read error response';
-          }
-
-          // Log detailed error information
-          console.error(`API error (${response.status}):`, errorText);
-          
-          // For 404 errors, log specific debugging info
-          if (response.status === 404) {
-            console.error(`The endpoint ${endpoint} was not found on the API service.`);
-            console.error(`Please verify the API service is running and the endpoint exists.`);
-            console.error(`Full URL attempted: ${fullUrl}`);
-          }
-          
-          throw new Error(`Failed to fetch market data: ${response.status} ${errorText}`);
-        }
-
-        // Parse the response data
-        const data = await response.json();
-        console.log(`Successfully fetched data for ${symbol}:`, data);
-        
-        // Cache the successful response
-        const cachedData = { [symbol]: data };
-        writeCache(SYMBOL_CACHE_FILE, cachedData);
-        
-        return NextResponse.json(data);
-      }
-      catch (error) {
-        console.error(`Error fetching data for ${symbol}:`, error);
-        
-        // Try to use cached data for this symbol
-        const cachedData = readCache(SYMBOL_CACHE_FILE);
-        if (cachedData && cachedData[symbol]) {
-          console.log(`Using cached data for symbol: ${symbol}`);
-          return NextResponse.json(cachedData[symbol]);
-        }
-        
-        return NextResponse.json({ 
-          error: `No data available for symbol: ${symbol}`,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          cached: false
-        }, { status: 404 });
-      }
+      return new Response(JSON.stringify({ error: 'No data available' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
+
+    // For the market overview (no specific symbol)
+    // Get all symbols (both indices and crypto)
+    const allSymbols = [...Object.keys(INDICES), ...Object.keys(CRYPTO)];
+    const historicalData = await getMultipleHistoricalData(allSymbols);
     
-    // For the ticker (no specific symbol)
-    try {
-      // First try to get all indices from historical data
-      const indices = Object.keys(INDICES);
-      const historicalDataPromises = indices.map(symbol => getLatestHistoricalData(symbol));
-      const historicalResults = await Promise.all(historicalDataPromises);
-      
-      const validHistoricalData = historicalResults.filter(data => data !== null);
-      
-      if (validHistoricalData.length > 0) {
-        // Get crypto data as before
-        const cryptoData = await Promise.all(
-          Object.entries(CRYPTO).map(async ([id, name]) => {
-            try {
-              const response = await fetch(`${marketDataUrl}/api/stocks?symbol=${id}`, {
-                headers: { 'x-api-key': marketDataApiKey }
-              });
-              if (!response.ok) return null;
-              const data = await response.json();
-              return {
-                symbol: name,
-                price: data.price,
-                change: data.change,
-                type: 'crypto'
-              };
-            } catch (error) {
-              console.error(`Error fetching crypto data for ${id}:`, error);
-              return null;
-            }
-          })
-        );
-
-        const allData = [...validHistoricalData, ...cryptoData.filter(data => data !== null)];
-        return new Response(JSON.stringify(allData), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      // If no historical data available, fall back to API calls
-      console.log(`Fetching all market data from Python API service`);
-      
-      // Instead of hardcoding one endpoint, let's try both
-      const endpoints = ['/api/stock', '/api/stocks'];
-      let response = null;
-      let successEndpoint = null;
-      let lastError = null;
-
-      // Try each endpoint until one works
-      for (const endpoint of endpoints) {
-        const fullUrl = `${marketDataUrl}${endpoint}`;
-        console.log(`🔴 DEBUGGING - Trying API URL: ${fullUrl}`);
-
-        try {
-          // Make the API request with the API key
-          response = await fetch(fullUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': marketDataApiKey
-            },
-            signal: AbortSignal.timeout(8000) // Increased timeout for production
-          });
-          
-          console.log(`Endpoint ${endpoint} response status:`, response.status);
-          
-          if (response.ok) {
-            console.log(`✅ Endpoint ${endpoint} successful!`);
-            successEndpoint = endpoint;
-            break; // We found a working endpoint
-          } else {
-            console.error(`❌ Endpoint ${endpoint} failed with status:`, response.status);
-            lastError = new Error(`Failed with status ${response.status}`);
-          }
-        } catch (fetchError) {
-          console.error(`❌ Fetch error for ${endpoint}:`, fetchError.message);
-          lastError = fetchError;
-        }
-      }
-
-      // If none of the endpoints worked
-      if (!response || !successEndpoint) {
-        console.error('All endpoints failed. Last error:', lastError);
-        
-        // Try to use cached data
-        const cachedData = readCache(TICKER_CACHE_FILE);
-        if (cachedData) {
-          console.log('Using cached ticker data');
-          return NextResponse.json(cachedData, {
-            headers: {
-              'X-Data-Source': 'cached',
-              'Cache-Control': 'max-age=3600'
-            }
-          });
-        }
-        
-        // Provide a static fallback response when API is unavailable and no cache exists
-        console.warn('No cached data available, returning fallback dataset');
-        const fallbackData = [
-          { symbol: 'AAPL', name: 'Apple Inc.', price: 178.61, change: 0.5 },
-          { symbol: 'MSFT', name: 'Microsoft Corporation', price: 413.64, change: 0.7 },
-          { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 174.42, change: -0.3 },
-          { symbol: 'AMZN', name: 'Amazon.com Inc.', price: 180.75, change: 1.2 },
-          { symbol: 'TSLA', name: 'Tesla, Inc.', price: 182.12, change: -1.5 },
-          { symbol: 'META', name: 'Meta Platforms, Inc.', price: 472.56, change: 0.9 },
-          { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 924.79, change: 2.1 },
-          { symbol: 'BRK.B', name: 'Berkshire Hathaway Inc.', price: 410.23, change: 0.1 }
-        ];
-        
-        return NextResponse.json(fallbackData, {
-          headers: {
-            'X-Data-Source': 'fallback',
-            'Cache-Control': 'max-age=300'
-          },
-          status: 200 // Return 200 instead of 503 to prevent client-side errors
-        });
-      }
-
-      // If we made it here, we have a successful response from one of the endpoints
-      // Parse the response data
-      const data = await response.json();
-      console.log(`Successfully fetched ticker data from Python API service using ${successEndpoint}`);
-      
-      // Cache the successful response and the endpoint that worked
-      writeCache(TICKER_CACHE_FILE, data);
-      
-      // Also cache which endpoint worked for future use
-      try {
-        fs.writeFileSync(path.join(CACHE_DIR, 'working-endpoint.txt'), successEndpoint);
-      } catch (e) {
-        console.error('Failed to cache working endpoint:', e);
-      }
-      
-      return NextResponse.json(data);
+    if (historicalData.length > 0) {
+      return new Response(JSON.stringify(historicalData), {
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    catch (error) {
-      console.error('Error in market data endpoint:', error);
-      throw error;
-    }
+
+    // If no data available at all
+    return new Response(JSON.stringify({ error: 'No market data available' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (error) {
     console.error('Error in GET handler:', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
