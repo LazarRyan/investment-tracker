@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { createMockClient } from './mock';
-import { Database } from '@/types/supabase';
+import type { Database } from '../../types/supabase';
 
 export const createClient = () => {
   // During build time or server-side rendering, return a mock client
