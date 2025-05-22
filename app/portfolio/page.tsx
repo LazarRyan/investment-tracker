@@ -46,16 +46,19 @@ export default function PortfolioAnalysis() {
       const response = await internalFetch('/api/investments');
       if (response.data) {
         setInvestments(response.data);
+        return response.data;
       }
+      return [];
     } catch (error) {
       console.error('Error fetching investments:', error);
       setError('Failed to load investments');
+      return [];
     }
   };
 
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/stocks?symbol=${symbol}`);
+      const response = await internalFetch(`/api/market-data?symbol=${symbol}`);
       if (!response.ok) {
         throw new Error('Failed to fetch market data');
       }
@@ -68,6 +71,8 @@ export default function PortfolioAnalysis() {
   };
 
   const updateInvestmentsWithMarketData = async (investments: Investment[]) => {
+    if (!investments.length) return;
+    
     const updatedInvestments = await Promise.all(
       investments.map(async (investment) => {
         const marketData = await fetchMarketData(investment.symbol);
