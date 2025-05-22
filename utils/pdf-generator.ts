@@ -1,8 +1,9 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Investment } from '@/app/api/investments/route';
 
-// Extend jsPDF to include autoTable only
+// No need to extend jsPDF manually, the import above handles it
+// but we'll keep the TypeScript type definition
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -53,6 +54,13 @@ export function generatePortfolioReport({
 }: PortfolioReportOptions): Blob {
   // Initialize PDF document
   const doc = new jsPDF();
+  
+  // Ensure autoTable is available
+  if (typeof doc.autoTable !== 'function') {
+    console.error('autoTable is not a function. Using manual tables instead.');
+    return generateBasicReport(investments, portfolioGrade, assetGrades, userName, reportDate);
+  }
+  
   const dateFormatted = reportDate.toLocaleDateString();
   
   // Add title and header information
@@ -254,5 +262,85 @@ export function generatePortfolioReport({
   }
   
   // Return PDF as a blob
+  return doc.output('blob');
+}
+
+/**
+ * Fallback function to generate a basic report without using autoTable
+ */
+function generateBasicReport(
+  investments: InvestmentWithData[],
+  portfolioGrade?: PortfolioGradeData,
+  assetGrades?: AssetGradeData[],
+  userName: string = 'Investor',
+  reportDate: Date = new Date()
+): Blob {
+  const doc = new jsPDF();
+  const dateFormatted = reportDate.toLocaleDateString();
+  
+  // Basic header
+  doc.setFontSize(20);
+  doc.text('Investment Portfolio Report', 105, 20, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text(`Prepared for: ${userName}`, 20, 30);
+  doc.text(`Date: ${dateFormatted}`, 20, 37);
+  
+  // Basic summary
+  doc.setFontSize(16);
+  doc.text('Portfolio Summary', 20, 50);
+  
+  // Calculate basic metrics
+  const totalInvested = investments.reduce((sum, inv) => sum + (inv.purchase_price * inv.shares), 0);
+  const currentValue = investments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
+  
+  // Add basic metrics
+  let y = 60;
+  doc.setFontSize(12);
+  doc.text(`Total Investments: ${investments.length}`, 20, y); y += 10;
+  doc.text(`Total Invested: $${totalInvested.toFixed(2)}`, 20, y); y += 10;
+  doc.text(`Current Value: $${currentValue.toFixed(2)}`, 20, y); y += 10;
+  
+  if (portfolioGrade) {
+    y += 10;
+    doc.setFontSize(16);
+    doc.text('Portfolio Grade', 20, y); y += 10;
+    doc.setFontSize(12);
+    doc.text(`Overall: ${portfolioGrade.overall}`, 20, y); y += 10;
+    doc.text(`Diversification: ${portfolioGrade.diversification}`, 20, y); y += 10;
+    doc.text(`Risk: ${portfolioGrade.risk}`, 20, y); y += 10;
+    doc.text(`Performance: ${portfolioGrade.performance}`, 20, y); y += 10;
+  }
+  
+  // Basic investments table
+  y += 10;
+  doc.setFontSize(16);
+  doc.text('Investments', 20, y); y += 10;
+  
+  doc.setFontSize(10);
+  // Table header
+  doc.text('Symbol', 20, y);
+  doc.text('Shares', 60, y);
+  doc.text('Purchase Price', 100, y);
+  doc.text('Current Value', 160, y);
+  y += 8;
+  
+  // Draw a line
+  doc.line(20, y-4, 190, y-4);
+  
+  // Table rows
+  investments.forEach(inv => {
+    if (y > 270) {
+      // Add a new page if we're getting close to the bottom
+      doc.addPage();
+      y = 20;
+    }
+    
+    doc.text(inv.symbol, 20, y);
+    doc.text(inv.shares.toString(), 60, y);
+    doc.text(`$${inv.purchase_price.toFixed(2)}`, 100, y);
+    doc.text(`$${(inv.totalValue || 0).toFixed(2)}`, 160, y);
+    y += 8;
+  });
+  
   return doc.output('blob');
 } 
