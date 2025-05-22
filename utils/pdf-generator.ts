@@ -2,10 +2,15 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Investment } from '@/app/api/investments/route';
 
-// Extend jsPDF to include autoTable
+// Extend jsPDF to include autoTable and other methods we need
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
+    internal: {
+      getNumberOfPages: () => number;
+      // Add other internal properties as needed
+      pages: any[];
+    };
   }
 }
 
