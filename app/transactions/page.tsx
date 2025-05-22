@@ -28,20 +28,28 @@ export default function TransactionsPage() {
     try {
       const response = await internalFetch('/api/transactions');
       if (response.data) {
-        setTransactions(response.data);
+        return response.data;
       }
+      return [];
     } catch (error) {
       console.error('Error fetching transactions:', error);
       setError('Failed to load transactions');
+      return [];
     }
   };
 
   useEffect(() => {
     const loadTransactions = async () => {
       setLoading(true);
-      const data = await fetchTransactions();
-      setTransactions(data);
-      setLoading(false);
+      try {
+        const data = await fetchTransactions();
+        setTransactions(data);
+      } catch (error) {
+        console.error('Error loading transactions:', error);
+        setError('Failed to load transactions');
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadTransactions();
