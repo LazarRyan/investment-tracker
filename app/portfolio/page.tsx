@@ -39,6 +39,7 @@ export default function PortfolioAnalysis() {
   const [error, setError] = useState<string | null>(null);
   const [portfolioGrade, setPortfolioGrade] = useState<PortfolioGrade | null>(null);
   const [assetGrades, setAssetGrades] = useState<AssetGrade[]>([]);
+  const [analysis, setAnalysis] = useState<any>(null);
 
   const fetchInvestments = async () => {
     try {
@@ -137,6 +138,8 @@ export default function PortfolioAnalysis() {
     try {
       const response = await internalFetch('/api/analysis');
       if (response.data) {
+        setPortfolioGrade(response.data.portfolioGrade);
+        setAssetGrades(response.data.assetGrades || []);
         setAnalysis(response.data);
       }
     } catch (error) {
@@ -148,9 +151,8 @@ export default function PortfolioAnalysis() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await fetchInvestments();
+      const investments = await fetchInvestments();
       await updateInvestmentsWithMarketData(investments);
-      await fetchPortfolioAnalysis();
       await fetchAnalysis();
       setLoading(false);
     };
