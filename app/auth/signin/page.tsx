@@ -23,11 +23,8 @@ export default function SignIn() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.resendSignUp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
-        },
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
       });
 
       if (error) {
