@@ -31,6 +31,7 @@ export const createMockAuth = () => ({
   updateUser: async () => ({ data: { user: null }, error: null }),
   signInWithOtp: async () => ({ data: {}, error: null }),
   signInWithOAuth: async () => ({ data: { provider: null, url: null }, error: null }),
+  verifyEmailChange: async () => ({ data: {}, error: null }),
   onAuthStateChange: () => ({
     data: { subscription: { unsubscribe: () => {} } },
     error: null
