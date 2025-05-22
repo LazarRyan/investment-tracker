@@ -29,6 +29,8 @@ export const createMockAuth = () => ({
   signOut: async () => ({ error: null }),
   resetPasswordForEmail: async () => ({ data: {}, error: null }),
   updateUser: async () => ({ data: { user: null }, error: null }),
+  signInWithOtp: async () => ({ data: {}, error: null }),
+  signInWithOAuth: async () => ({ data: { provider: null, url: null }, error: null }),
   onAuthStateChange: () => ({
     data: { subscription: { unsubscribe: () => {} } },
     error: null
