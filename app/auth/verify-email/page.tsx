@@ -26,11 +26,8 @@ export default function VerifyEmail() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email: user.email,
-        options: {
-          shouldCreateUser: false,
-        }
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/auth/verify-email`,
       });
 
       if (error) {

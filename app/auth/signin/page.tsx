@@ -33,11 +33,8 @@ export default function SignIn() {
         // Check if email is verified
         if (!data.user.email_confirmed_at) {
           // Send another verification email
-          await supabase.auth.signInWithOtp({
-            email: email,
-            options: {
-              shouldCreateUser: false,
-            }
+          await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/auth/verify-email`,
           });
           router.push('/auth/verify-email');
           return;
