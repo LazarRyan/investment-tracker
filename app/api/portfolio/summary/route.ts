@@ -50,8 +50,10 @@ export async function GET(req: Request) {
 
       const adminSupabase = createClient(supabaseUrl, supabaseKey);
       
-      // Get all unique symbols
-      const symbols = [...new Set(investments.map(inv => inv.symbol))];
+      // Get all unique symbols using Array.filter instead of Set spread
+      const symbolsSet = new Set<string>();
+      investments.forEach(inv => symbolsSet.add(inv.symbol));
+      const symbols = Array.from(symbolsSet);
       
       // Fetch the latest market data for all symbols
       const { data: marketData, error: marketDataError } = await adminSupabase
@@ -82,7 +84,7 @@ export async function GET(req: Request) {
       
       // For sectors count, we would need sector information
       // For now, we'll just count unique symbols as a proxy
-      const uniqueSymbols = new Set();
+      const uniqueSymbols = new Set<string>();
 
       investments.forEach(investment => {
         const latestData = latestPriceBySymbol.get(investment.symbol);
