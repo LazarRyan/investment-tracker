@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export const runtime = 'edge';
@@ -14,6 +14,7 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -28,20 +29,67 @@ export default function SignIn() {
       });
 
       if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          // Send verification email and redirect to verify page
+          await supabase.auth.resend({
+            type: 'signup',
+            email,
+            options: {
+              redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
+            },
+          });
+          router.push('/auth/verify-email?type=signup');
+          return;
+        }
         setError(error.message);
       } else if (data?.user) {
         // Check if email is verified
         if (!data.user.email_confirmed_at) {
-          // Send another verification email
-          await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth/verify-email`,
+          // Send verification email
+          await supabase.auth.resend({
+            type: 'signup',
+            email: data.user.email!,
+            options: {
+              redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
+            },
           });
-          router.push('/auth/verify-email');
+          router.push('/auth/verify-email?type=signup');
           return;
         }
         
-        // Email is verified, proceed to dashboard
-        router.push('/dashboard');
+        // Email is verified, redirect to the intended page or dashboard
+        const redirectTo = searchParams.get('redirect') || '/dashboard';
+        router.push(redirectTo);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/verify-email?type=magic_link`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/auth/verify-email?type=magic_link');
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -107,6 +155,15 @@ export default function SignIn() {
               >
                 Forgot your password?
               </Link>
+            </div>
+            <div className="text-sm">
+              <button
+                type="button"
+                onClick={handleMagicLink}
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Sign in with magic link
+              </button>
             </div>
           </div>
 

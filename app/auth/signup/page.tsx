@@ -17,6 +17,25 @@ export default function SignUp() {
   const router = useRouter();
   const supabase = createClient();
 
+  const validatePassword = (password: string) => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    if (!/[!@#$%^&*]/.test(password)) {
+      return 'Password must contain at least one special character (!@#$%^&*)';
+    }
+    return null;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -30,8 +49,9 @@ export default function SignUp() {
     }
 
     // Validate password strength
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
       setLoading(false);
       return;
     }
@@ -41,24 +61,18 @@ export default function SignUp() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
           data: {
-            email_confirmed: false,
-          }
+            email_confirmed_at: null,
+          },
         },
       });
 
       if (error) {
         setError(error.message);
-      } else if (data?.user?.identities?.length === 0) {
-        setError('An account with this email already exists.');
       } else if (data?.user) {
-        // Check if the user needs to verify their email
-        if (!data.user.email_confirmed_at) {
-          router.push('/auth/verify-email');
-        } else {
-          router.push('/dashboard');
-        }
+        // Always redirect to verify email page for new sign-ups
+        router.push('/auth/verify-email?type=signup');
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -74,6 +88,9 @@ export default function SignUp() {
           <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
             Create your account
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Join Investment Tracker today
+          </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSignUp}>
           {error && (
@@ -81,7 +98,7 @@ export default function SignUp() {
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-          <div className="space-y-4 rounded-md shadow-sm">
+          <div className="space-y-4">
             <div>
               <label htmlFor="email" className="sr-only">
                 Email address
@@ -136,9 +153,9 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative flex w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+              className="relative z-10 group w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 flex items-center"
             >
-              {loading ? 'Creating account...' : 'Sign up'}
+              {loading ? 'Creating account...' : 'Create account'}
             </button>
           </div>
         </form>
@@ -152,6 +169,17 @@ export default function SignUp() {
             Sign in
           </Link>
         </p>
+
+        <div className="mt-4 text-sm text-gray-500">
+          <p className="font-medium mb-2">Password requirements:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>At least 8 characters long</li>
+            <li>At least one uppercase letter</li>
+            <li>At least one lowercase letter</li>
+            <li>At least one number</li>
+            <li>At least one special character (!@#$%^&*)</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
