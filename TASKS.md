@@ -66,11 +66,11 @@
   - [x] Add investment recommendations
   - [x] Implement risk assessment tools
 - [ ] Reports and Exports
-  - [ ] **3.1 PDF Report Generation**
-    - [ ] Create report template with portfolio summary
-    - [ ] Implement PDF generation functionality using a library like jsPDF
-    - [ ] Add options to customize report content (date range, specific investments)
-    - [ ] Add download button on portfolio page
+  - [x] **3.1 PDF Report Generation**
+    - [x] Create report template with portfolio summary
+    - [x] Implement PDF generation functionality using a library like jsPDF
+    - [x] Add options to customize report content (date range, specific investments)
+    - [x] Add download button on portfolio page
     - **End Objective**: Users can generate and download a professional PDF report of their portfolio with performance metrics
   
   - [ ] **3.2 CSV Export Functionality**
