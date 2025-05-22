@@ -35,17 +35,19 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     try {
       const response = await internalFetch('/api/investments');
       if (response.data) {
-        setInvestments(response.data);
+        return response.data;
       }
+      return [];
     } catch (error) {
       console.error('Error fetching investments:', error);
+      return [];
     }
   };
 
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
       console.log(`Fetching market data for ${symbol}...`);
-      const response = await fetch(`/api/market-data?symbol=${symbol}`);
+      const response = await internalFetch(`/api/market-data?symbol=${symbol}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -124,9 +126,9 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const loadInvestments = async () => {
     console.log('Loading investments...');
     setLoading(true);
-    const data = await fetchInvestments();
-    console.log('Fetched investments:', data);
-    await updateInvestmentsWithMarketData(data);
+    const investments = await fetchInvestments();
+    console.log('Fetched investments:', investments);
+    await updateInvestmentsWithMarketData(investments);
     setLoading(false);
   };
 
