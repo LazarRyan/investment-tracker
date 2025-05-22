@@ -35,8 +35,17 @@ export default function VerifyEmail() {
 
   const handleEmailConfirmation = async (token: string) => {
     try {
+      // First get the user's email
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.email) {
+        setError('No email address found. Please try signing in again.');
+        return;
+      }
+
       const { error } = await supabase.auth.verifyOtp({
         type: 'email_change',
+        email: user.email,
         token,
       });
 
