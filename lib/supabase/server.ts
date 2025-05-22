@@ -39,7 +39,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   }
 
   const isGuest = cookieStore.get('guest_mode')?.value === 'true';
-  let userId = session?.user?.id;
+  let userId: string | null = session?.user?.id || null;
 
   if (!userId && isGuest) {
     let guestId = cookieStore.get('guest_id')?.value;
