@@ -52,9 +52,13 @@ export default function SignUp() {
         setError(error.message);
       } else if (data?.user?.identities?.length === 0) {
         setError('An account with this email already exists.');
-      } else {
-        // Show success message and redirect
-        router.push('/auth/verify-email');
+      } else if (data?.user) {
+        // Check if the user needs to verify their email
+        if (!data.user.email_confirmed_at) {
+          router.push('/auth/verify-email');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');

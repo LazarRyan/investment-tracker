@@ -30,6 +30,21 @@ export default function SignIn() {
       if (error) {
         setError(error.message);
       } else if (data?.user) {
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          // Send another verification email
+          await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            }
+          });
+          router.push('/auth/verify-email');
+          return;
+        }
+        
+        // Email is verified, proceed to dashboard
         router.push('/dashboard');
       }
     } catch (err) {
