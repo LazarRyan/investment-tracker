@@ -12,6 +12,7 @@ interface MarketIndex {
   price: number;
   change: number;
   type: string;
+  is_market_hours: boolean;
 }
 
 export default function Dashboard() {
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [marketData, setMarketData] = useState<MarketIndex[]>([]);
   const [marketDataLoading, setMarketDataLoading] = useState(true);
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
+  const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -91,6 +93,9 @@ export default function Dashboard() {
           setMarketData(indices.slice(0, 3));
           setMarketDataError(null);
           
+          // Check if any of the indices are from market hours
+          setIsMarketHours(indices.some(index => index.is_market_hours));
+          
           // Store the last updated timestamp
           localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
         } else {
@@ -107,11 +112,11 @@ export default function Dashboard() {
 
     fetchMarketData();
     
-    // Refresh market data every 60 seconds
-    const intervalId = setInterval(fetchMarketData, 60000);
+    // Refresh market data every 60 seconds during market hours, every 5 minutes outside
+    const intervalId = setInterval(fetchMarketData, isMarketHours ? 60000 : 300000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [isMarketHours]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -223,7 +228,12 @@ export default function Dashboard() {
                   <div key={index.symbol} className="bg-white rounded-lg shadow p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">{index.symbol}</p>
+                        <p className="text-sm text-gray-500">
+                          {index.symbol}
+                          {!index.is_market_hours && (
+                            <span className="ml-2 text-xs text-gray-400">(Delayed)</span>
+                          )}
+                        </p>
                         <p className="text-xl font-semibold text-gray-900">
                           {typeof index.price === 'number' 
                             ? index.price.toLocaleString(undefined, {

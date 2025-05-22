@@ -7,6 +7,7 @@ interface MarketData {
   price: number;
   change: number;
   type: 'index' | 'crypto';
+  is_market_hours?: boolean;
 }
 
 export default function StockTicker() {
@@ -14,6 +15,7 @@ export default function StockTicker() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchMarketData = async () => {
@@ -33,6 +35,10 @@ export default function StockTicker() {
         if (Array.isArray(data) && data.length > 0) {
           setMarketData(data);
           setLastUpdated(new Date());
+          // Check if any of the stock data is from market hours
+          setIsMarketHours(data.some((item: MarketData & { is_market_hours?: boolean }) => 
+            item.type === 'index' && item.is_market_hours
+          ));
           setError(null);
         } else {
           console.warn('StockTicker: Received empty market data');
@@ -49,10 +55,10 @@ export default function StockTicker() {
     // Initial fetch
     fetchMarketData();
     
-    // Update every 30 seconds
-    const interval = setInterval(fetchMarketData, 30000);
+    // Update every 30 seconds during market hours, every 5 minutes outside market hours
+    const interval = setInterval(fetchMarketData, isMarketHours ? 30000 : 300000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMarketHours]); // Add isMarketHours as dependency
 
   const formatPrice = (data: MarketData) => {
     if (data.type === 'crypto') {
@@ -114,6 +120,11 @@ export default function StockTicker() {
                 CRYPTO
               </span>
             )}
+            {data.type === 'index' && !data.is_market_hours && (
+              <span className="mr-2 text-xs bg-gray-500 text-white px-1.5 py-0.5 rounded">
+                DELAYED
+              </span>
+            )}
             <span className={`font-semibold ${data.type === 'crypto' ? 'text-yellow-400' : 'text-blue-400'}`}>
               {data.symbol}
             </span>
@@ -127,7 +138,7 @@ export default function StockTicker() {
       {lastUpdated && (
         <div className="text-right pr-4">
           <span className="text-xs text-gray-500">
-            Data as of {lastUpdated.toLocaleString()}
+            {isMarketHours ? 'Live' : 'Delayed'} data as of {lastUpdated.toLocaleString()}
           </span>
         </div>
       )}

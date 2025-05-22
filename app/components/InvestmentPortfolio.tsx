@@ -7,6 +7,7 @@ import SellInvestmentForm from './SellInvestmentForm';
 interface MarketData {
   price: number;
   change: number;
+  is_market_hours?: boolean;
 }
 
 interface InvestmentWithMarketData extends Investment {
@@ -15,6 +16,7 @@ interface InvestmentWithMarketData extends Investment {
   gainLoss?: number;
   gainLossPercentage?: number;
   sector?: string;
+  isMarketHours?: boolean;
 }
 
 interface InvestmentPortfolioProps {
@@ -26,6 +28,7 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sellInvestment, setSellInvestment] = useState<InvestmentWithMarketData | null>(null);
+  const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
 
   const fetchInvestments = async () => {
     try {
@@ -51,6 +54,12 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
       }
       const data = await response.json();
       console.log(`Received market data for ${symbol}:`, data);
+      
+      // Update market hours state based on stock data
+      if (data && !data.type || data.type === 'index') {
+        setIsMarketHours(!!data.is_market_hours);
+      }
+      
       return data;
     } catch (err) {
       console.error(`Error fetching market data for ${symbol}:`, err);
@@ -83,6 +92,7 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
             totalValue,
             gainLoss,
             gainLossPercentage,
+            isMarketHours: marketData.is_market_hours
           };
         }
         return investment;
@@ -107,18 +117,18 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     console.log('Initial load...');
     loadInvestments();
 
-    // Refresh market data every 30 seconds
+    // Refresh market data every 30 seconds during market hours, every 5 minutes outside
     const intervalId = setInterval(async () => {
-      console.log('Running 30-second update interval...');
+      console.log(`Running ${isMarketHours ? '30-second' : '5-minute'} update interval...`);
       const data = await fetchInvestments();
       await updateInvestmentsWithMarketData(data);
-    }, 30000);
+    }, isMarketHours ? 30000 : 300000);
 
     return () => {
       console.log('Cleaning up interval...');
       clearInterval(intervalId);
     };
-  }, []); // Empty dependency array since we're using the interval for updates
+  }, [isMarketHours]);
 
   const handleSellClick = (investment: InvestmentWithMarketData) => {
     setSellInvestment(investment);
@@ -392,6 +402,9 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
                           <tr key={investment.id}>
                             <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                               {investment.symbol}
+                              {investment.isMarketHours === false && (
+                                <span className="ml-2 text-xs text-gray-400">(Delayed)</span>
+                              )}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {investment.shares}

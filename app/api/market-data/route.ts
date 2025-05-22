@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,60 @@ async function checkApiHealth(serviceUrl: string, apiKey: string) {
   }
 }
 
+async function getLatestHistoricalData(symbol: string) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials not configured');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get the most recent data point for this symbol
+    const { data, error } = await supabase
+      .from('historical_prices')
+      .select('*')
+      .eq('symbol', symbol.toUpperCase())
+      .order('timestamp', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+
+    return {
+      symbol: data[0].symbol,
+      price: data[0].price,
+      change: data[0].change_percentage,
+      is_market_hours: data[0].is_market_hours,
+      timestamp: data[0].timestamp,
+      type: 'index'
+    };
+  } catch (error) {
+    console.error('Error fetching historical data:', error);
+    return null;
+  }
+}
+
+// Constants for market data
+const INDICES = {
+  "SPY": "S&P 500 (ETF)",
+  "DIA": "Dow Jones (ETF)",
+  "QQQ": "NASDAQ-100 (ETF)",
+  "VGK": "FTSE Europe (ETF)",
+  "EWJ": "Nikkei (ETF)",
+  "EWG": "DAX Germany (ETF)"
+};
+
+const CRYPTO = {
+  "bitcoin": "Bitcoin",
+  "ethereum": "Ethereum",
+  "tether": "Tether",
+  "cardano": "Cardano",
+  "dogecoin": "Dogecoin"
+};
+
 /**
  * Fetch market data from our Python FastAPI service
  * This connects to the analysis-service/api Python API service which uses both FMP and CoinGecko
@@ -137,8 +192,17 @@ export async function GET(request: Request) {
       // We'll still try to make the request, but we've warned about potential issues
     }
 
-    // For symbol-specific requests
+    // If a specific symbol is requested
     if (symbol) {
+      // First try to get from historical data
+      const historicalData = await getLatestHistoricalData(symbol);
+      if (historicalData) {
+        return new Response(JSON.stringify(historicalData), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // If no historical data, fall back to API call
       try {
         console.log(`Fetching market data for symbol: ${symbol}`);
         
@@ -214,6 +278,43 @@ export async function GET(request: Request) {
     
     // For the ticker (no specific symbol)
     try {
+      // First try to get all indices from historical data
+      const indices = Object.keys(INDICES);
+      const historicalDataPromises = indices.map(symbol => getLatestHistoricalData(symbol));
+      const historicalResults = await Promise.all(historicalDataPromises);
+      
+      const validHistoricalData = historicalResults.filter(data => data !== null);
+      
+      if (validHistoricalData.length > 0) {
+        // Get crypto data as before
+        const cryptoData = await Promise.all(
+          Object.entries(CRYPTO).map(async ([id, name]) => {
+            try {
+              const response = await fetch(`${marketDataUrl}/api/stocks?symbol=${id}`, {
+                headers: { 'x-api-key': marketDataApiKey }
+              });
+              if (!response.ok) return null;
+              const data = await response.json();
+              return {
+                symbol: name,
+                price: data.price,
+                change: data.change,
+                type: 'crypto'
+              };
+            } catch (error) {
+              console.error(`Error fetching crypto data for ${id}:`, error);
+              return null;
+            }
+          })
+        );
+
+        const allData = [...validHistoricalData, ...cryptoData.filter(data => data !== null)];
+        return new Response(JSON.stringify(allData), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // If no historical data available, fall back to API calls
       console.log(`Fetching all market data from Python API service`);
       
       // Instead of hardcoding one endpoint, let's try both
@@ -309,75 +410,14 @@ export async function GET(request: Request) {
       return NextResponse.json(data);
     }
     catch (error) {
-      console.error(`Error fetching ticker data:`, error);
-      
-      // Log exactly what type of error we got
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('🔴 Network fetch error - this could be a CORS issue or the API service is unreachable');
-      }
-      
-      // Try to check the root endpoint of the API for basic connectivity
-      try {
-        console.log('Attempting to check API root as a last resort...');
-        const rootResponse = await fetch(`${marketDataUrl}/`, {
-          method: 'GET',
-          headers: { 'x-api-key': marketDataApiKey },
-          signal: AbortSignal.timeout(5000),
-          mode: 'no-cors' // Try with no-cors as a last resort
-        });
-        console.log('Root endpoint connection attempt result:', rootResponse.status);
-      } catch (rootError) {
-        console.error('Root endpoint completely unreachable:', rootError.message);
-        console.error('This indicates the API service is down or unreachable from Vercel');
-      }
-      
-      // Try to use cached ticker data
-      const cachedData = readCache(TICKER_CACHE_FILE);
-      if (cachedData) {
-        console.log('Using cached ticker data');
-        return NextResponse.json(cachedData);
-      }
-      
-      // No cached data available, make sure we log this clearly
-      console.error('🔴 CRITICAL: No cached data available and API call failed');
-      console.error('Cache file path:', TICKER_CACHE_FILE);
-      
-      // Check if cache directory exists
-      try {
-        const cacheExists = fs.existsSync(CACHE_DIR);
-        console.error('Cache directory exists:', cacheExists);
-        if (cacheExists) {
-          const files = fs.readdirSync(CACHE_DIR);
-          console.error('Files in cache directory:', files);
-        }
-      } catch (fsError) {
-        console.error('Error checking cache directory:', fsError);
-      }
-      
-      // Return an error response that's more helpful
-      return NextResponse.json({ 
-        error: 'API service unavailable', 
-        message: 'The market data service is currently unavailable. Please try again later.',
-        apiUrlAttempted: marketDataUrl,
-        endpoint: '/api/stocks',
-        errorDetails: error instanceof Error ? error.message : 'Unknown error'
-      }, { status: 503 });
+      console.error('Error in market data endpoint:', error);
+      throw error;
     }
-  } 
-  catch (error) {
-    console.error('Error in market data API:', error);
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    
-    // Try to use cached ticker data as last resort
-    const cachedData = readCache(TICKER_CACHE_FILE);
-    if (cachedData) {
-      console.log('Using cached ticker data due to general error');
-      return NextResponse.json(cachedData);
-    }
-    
-    return NextResponse.json({ error: 'Failed to fetch market data' }, { status: 500 });
+  } catch (error) {
+    console.error('Error in GET handler:', error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 } 
