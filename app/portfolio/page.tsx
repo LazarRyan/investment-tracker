@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Investment } from '../api/investments/route';
 import { createClient } from '@/lib/supabase/client';
 import { internalFetch } from '../../utils/api';
-import { generatePortfolioReport, InvestmentWithData, PortfolioGrade, AssetGrade } from '../../utils/pdf-generator';
+import { generatePortfolioReport, InvestmentWithData } from '../../utils/pdf-generator';
 
 interface MarketData {
   price: number;

@@ -16,7 +16,8 @@ export interface InvestmentWithData extends Investment {
   gainLossPercentage?: number;
 }
 
-export interface PortfolioGrade {
+// Using generic interfaces to avoid conflicts with page.tsx interfaces
+export interface PortfolioGradeData {
   overall: string;
   diversification: string;
   risk: string;
@@ -24,7 +25,7 @@ export interface PortfolioGrade {
   analysis: string[];
 }
 
-export interface AssetGrade {
+export interface AssetGradeData {
   symbol: string;
   grade: string;
   strengths: string[];
@@ -34,8 +35,8 @@ export interface AssetGrade {
 
 interface PortfolioReportOptions {
   investments: InvestmentWithData[];
-  portfolioGrade?: PortfolioGrade;
-  assetGrades?: AssetGrade[];
+  portfolioGrade?: PortfolioGradeData;
+  assetGrades?: AssetGradeData[];
   userName?: string;
   reportDate?: Date;
 }
