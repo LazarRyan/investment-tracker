@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Investment } from '../api/investments/route';
 import SellInvestmentForm from './SellInvestmentForm';
+import { internalFetch } from '../../utils/api';
 
 interface MarketData {
   price: number;
@@ -32,16 +33,12 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
 
   const fetchInvestments = async () => {
     try {
-      const response = await fetch('/api/investments');
-      if (!response.ok) {
-        throw new Error('Failed to fetch investments');
+      const response = await internalFetch('/api/investments');
+      if (response.data) {
+        setInvestments(response.data);
       }
-      const data = await response.json();
-      return data;
-    } catch (err) {
-      console.error('Error fetching investments:', err);
-      setError('Failed to load investments');
-      return [];
+    } catch (error) {
+      console.error('Error fetching investments:', error);
     }
   };
 
@@ -208,6 +205,29 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     } catch (err) {
       console.error('Error selling investment:', err);
       setError('Failed to sell investment');
+    }
+  };
+
+  const handleSell = async (investmentId: string, quantity: number, currentPrice: number) => {
+    try {
+      const response = await internalFetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          investmentId,
+          quantity,
+          price: currentPrice,
+          type: 'SELL'
+        })
+      });
+
+      if (response.success) {
+        fetchInvestments(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error selling investment:', error);
     }
   };
 

@@ -16,30 +16,33 @@
 investmentapp/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes for investments, transactions
-│   │   ├── analysis/      # Analysis route (forwards to microservice)
-│   │   ├── investments/   # Investment management endpoints
-│   │   ├── settings/      # User settings endpoints
-│   │   └── transactions/  # Transaction management endpoints
 │   ├── auth/              # Authentication pages (signin, signup, reset)
 │   ├── dashboard/         # Main dashboard
 │   ├── portfolio/         # Portfolio analysis
+│   ├── settings/          # User settings
 │   ├── transactions/      # Transaction management
 │   ├── components/        # Shared components
+│   ├── globals.css        # Global styles
+│   ├── page.tsx          # Home page
 │   └── layout.tsx         # Root layout
 ├── lib/                   # Utility functions and configurations
-│   ├── supabase/         # Supabase client and utilities
-│   ├── middleware/       # Auth and API middleware
 │   ├── hooks/            # Custom React hooks
+│   ├── middleware/       # Auth and API middleware
 │   └── types/            # TypeScript type definitions
 ├── analysis-service/      # Investment Analysis Microservice
-│   ├── src/              # Service source code
-│   │   ├── routes/       # API route handlers
-│   │   └── index.js      # Service entry point
-│   └── package.json      # Service dependencies
-├── middleware.ts         # Auth and routing middleware
-├── vercel.json          # Vercel deployment configuration
-├── next.config.js       # Next.js configuration
-└── public/              # Static assets
+├── market-service/       # Market Data Service
+├── supabase/            # Supabase client and utilities
+├── sql/                 # Database migrations and queries
+├── public/              # Static assets
+├── middleware.ts        # Auth and routing middleware
+├── vercel.json         # Vercel deployment configuration
+├── next.config.js      # Next.js configuration
+├── tailwind.config.js  # Tailwind CSS configuration
+├── postcss.config.js   # PostCSS configuration
+├── railway.json        # Railway deployment configuration
+├── DEPLOYMENT.md       # Deployment documentation
+├── TASKS.md           # Project tasks and roadmap
+└── ARCHITECTURE.md    # This architecture documentation
 ```
 
 ## Key Components

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import InvestmentPortfolio from '../components/InvestmentPortfolio';
 import AddInvestmentForm from '../components/AddInvestmentForm';
+import { internalFetch } from '../../utils/api';
 
 interface MarketIndex {
   symbol: string;
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const [marketDataLoading, setMarketDataLoading] = useState(true);
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
   const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
+  const [portfolioSummary, setPortfolioSummary] = useState<any>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -67,64 +69,13 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        setMarketDataLoading(true);
-        console.log('Dashboard: Fetching market overview data from API service...');
-        const response = await fetch('/api/market-data');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch market data: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Dashboard: Market overview data received:', data);
-        
-        if (!Array.isArray(data) || data.length === 0) {
-          console.warn('Dashboard: Received empty or invalid market data');
-          throw new Error('No market data available');
-        }
-        
-        // Filter to only show stock indices (not crypto)
-        const indices = data.filter((item: MarketIndex) => item.type === 'index');
-        
-        console.log('Dashboard: Filtered indices for market overview:', indices);
-        
-        if (indices.length > 0) {
-          // Sort indices by symbol to maintain consistent order
-          const sortedIndices = indices.sort((a, b) => a.symbol.localeCompare(b.symbol));
-          
-          // Take the first 3 indices for display
-          setMarketData(sortedIndices.slice(0, 3));
-          setMarketDataError(null);
-          
-          // Check if any of the indices are from market hours
-          const anyMarketHours = indices.some(index => index.is_market_hours);
-          setIsMarketHours(anyMarketHours);
-          
-          // Store the last updated timestamp and market hours state
-          const timestamp = new Date().toISOString();
-          localStorage.setItem('marketDataLastUpdated', timestamp);
-          localStorage.setItem('isMarketHours', String(anyMarketHours));
-          
-          console.log('Dashboard: Market data updated successfully', {
-            indicesCount: indices.length,
-            isMarketHours: anyMarketHours,
-            timestamp
-          });
-        } else {
-          console.warn('Dashboard: No indices found in API response');
-          throw new Error('No index data available');
+        const response = await internalFetch('/api/market-data');
+        if (response.data) {
+          setMarketData(response.data);
         }
       } catch (error) {
-        console.error('Dashboard: Error fetching market data:', error);
+        console.error('Error fetching market data:', error);
         setMarketDataError('Failed to load market data');
-        
-        // Try to use last known market hours state
-        const lastKnownMarketHours = localStorage.getItem('isMarketHours');
-        if (lastKnownMarketHours !== null) {
-          setIsMarketHours(lastKnownMarketHours === 'true');
-        }
-      } finally {
-        setMarketDataLoading(false);
       }
     };
 
@@ -135,6 +86,18 @@ export default function Dashboard() {
     
     return () => clearInterval(intervalId);
   }, []); // Remove isMarketHours dependency since we're using historical data
+
+  const fetchPortfolioSummary = async () => {
+    try {
+      const response = await internalFetch('/api/portfolio/summary');
+      if (response.data) {
+        setPortfolioSummary(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching portfolio summary:', error);
+      setMarketDataError('Failed to load portfolio summary');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

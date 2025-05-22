@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { internalFetch } from '../../utils/api';
 
 interface MarketData {
   symbol: string;
@@ -23,7 +24,7 @@ export default function StockTicker() {
         setIsLoading(true);
         setError(null);
         console.log('StockTicker: Fetching market data from the API service...');
-        const response = await fetch('/api/market-data');
+        const response = await internalFetch('/api/market-data');
         
         if (!response.ok) {
           throw new Error(`Failed to fetch market data: ${response.status}`);

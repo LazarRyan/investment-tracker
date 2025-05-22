@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Investment } from '../api/investments/route';
 import { createClient } from '@/lib/supabase/client';
+import { internalFetch } from '../../utils/api';
 
 interface MarketData {
   price: number;
@@ -41,16 +42,13 @@ export default function PortfolioAnalysis() {
 
   const fetchInvestments = async () => {
     try {
-      const response = await fetch('/api/investments');
-      if (!response.ok) {
-        throw new Error('Failed to fetch investments');
+      const response = await internalFetch('/api/investments');
+      if (response.data) {
+        setInvestments(response.data);
       }
-      const data = await response.json();
-      return data;
-    } catch (err) {
-      console.error('Error fetching investments:', err);
+    } catch (error) {
+      console.error('Error fetching investments:', error);
       setError('Failed to load investments');
-      return [];
     }
   };
 
@@ -135,12 +133,25 @@ export default function PortfolioAnalysis() {
     }
   };
 
+  const fetchAnalysis = async () => {
+    try {
+      const response = await internalFetch('/api/analysis');
+      if (response.data) {
+        setAnalysis(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching analysis:', error);
+      setError('Failed to load portfolio analysis');
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const data = await fetchInvestments();
-      await updateInvestmentsWithMarketData(data);
+      await fetchInvestments();
+      await updateInvestmentsWithMarketData(investments);
       await fetchPortfolioAnalysis();
+      await fetchAnalysis();
       setLoading(false);
     };
 

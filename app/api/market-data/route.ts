@@ -42,16 +42,19 @@ async function getLatestHistoricalData(symbol: string) {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    // Determine if it's a crypto symbol
+    // Determine if it's a crypto symbol or index
     const isCrypto = Object.keys(CRYPTO).includes(symbol.toLowerCase());
+    const isIndex = Object.keys(INDICES).includes(symbol.toUpperCase());
     
     return {
-      symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] : (INDICES[data[0].symbol] || data[0].symbol),
+      symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] : 
+             isIndex ? INDICES[symbol.toUpperCase()] : 
+             symbol.toUpperCase(),
       price: data[0].price,
       change: data[0].change_percentage,
       is_market_hours: data[0].is_market_hours,
       timestamp: data[0].timestamp,
-      type: isCrypto ? 'crypto' : 'index'
+      type: isCrypto ? 'crypto' : isIndex ? 'index' : 'stock'
     };
   } catch (error) {
     console.error('Error fetching historical data:', error);
@@ -90,14 +93,19 @@ async function getMultipleHistoricalData(symbols: string[]) {
     });
 
     return Array.from(latestBySymbol.values()).map(entry => {
-      const isCrypto = Object.keys(CRYPTO).includes(entry.symbol.toLowerCase());
+      const symbol = entry.symbol;
+      const isCrypto = Object.keys(CRYPTO).includes(symbol.toLowerCase());
+      const isIndex = Object.keys(INDICES).includes(symbol.toUpperCase());
+      
       return {
-        symbol: isCrypto ? CRYPTO[entry.symbol.toLowerCase()] : (INDICES[entry.symbol] || entry.symbol),
+        symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] : 
+               isIndex ? INDICES[symbol.toUpperCase()] : 
+               symbol.toUpperCase(),
         price: entry.price,
         change: entry.change_percentage,
         is_market_hours: entry.is_market_hours,
         timestamp: entry.timestamp,
-        type: isCrypto ? 'crypto' : 'index'
+        type: isCrypto ? 'crypto' : isIndex ? 'index' : 'stock'
       };
     });
   } catch (error) {
@@ -111,16 +119,19 @@ export async function GET(request: Request) {
     console.log('Market data API called');
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
-
+    
     // If a specific symbol is requested
     if (symbol) {
+      console.log(`Fetching data for symbol: ${symbol}`);
       const historicalData = await getLatestHistoricalData(symbol);
       if (historicalData) {
+        console.log(`Found historical data for ${symbol}:`, historicalData);
         return new Response(JSON.stringify(historicalData), {
           headers: { 'Content-Type': 'application/json' }
         });
       }
 
+      console.log(`No data available for ${symbol}`);
       return new Response(JSON.stringify({ error: 'No data available' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
@@ -130,15 +141,18 @@ export async function GET(request: Request) {
     // For the market overview (no specific symbol)
     // Get all symbols (both indices and crypto)
     const allSymbols = [...Object.keys(INDICES), ...Object.keys(CRYPTO)];
+    console.log('Fetching market overview data for symbols:', allSymbols);
     const historicalData = await getMultipleHistoricalData(allSymbols);
     
     if (historicalData.length > 0) {
+      console.log(`Found historical data for ${historicalData.length} symbols`);
       return new Response(JSON.stringify(historicalData), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     // If no data available at all
+    console.log('No market data available');
     return new Response(JSON.stringify({ error: 'No market data available' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { internalFetch } from '../../utils/api';
 
 interface UserSettings {
   email_notifications: boolean;
@@ -46,11 +47,7 @@ export default function SettingsPage() {
           });
           
           // Fetch user settings from your API
-          const response = await fetch('/api/settings');
-          if (response.ok) {
-            const data = await response.json();
-            setSettings(data);
-          }
+          await fetchSettings();
         }
       } catch (err) {
         console.error('Error loading user data:', err);
@@ -63,6 +60,50 @@ export default function SettingsPage() {
     loadUserData();
   }, [supabase.auth]);
 
+  const fetchSettings = async () => {
+    try {
+      const response = await internalFetch('/api/settings');
+      if (response.data) {
+        setSettings(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      setError('Failed to load settings');
+    }
+  };
+
+  const saveSettings = async (newSettings: UserSettings) => {
+    try {
+      const response = await internalFetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSettings)
+      });
+      
+      if (response.success) {
+        setSuccessMessage('Settings saved successfully');
+        fetchSettings(); // Refresh settings
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setError('Failed to save settings');
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await internalFetch('/api/user');
+      if (response.data) {
+        setProfile(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setError('Failed to load user profile');
+    }
+  };
+
   const handleSettingChange = async (
     key: keyof UserSettings,
     value: string | number | boolean
@@ -71,18 +112,7 @@ export default function SettingsPage() {
     
     try {
       // Update settings in the backend
-      const response = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ [key]: value }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update settings');
-      
-      setSuccessMessage('Settings updated successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      await saveSettings(settings);
     } catch (err) {
       console.error('Error updating settings:', err);
       setError('Failed to update settings');

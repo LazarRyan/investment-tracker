@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { internalFetch } from '../../utils/api';
 
 interface Transaction {
   id: string;
@@ -25,23 +26,13 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     try {
-      console.log('Fetching transactions...');
-      const response = await fetch('/api/transactions');
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch transactions');
+      const response = await internalFetch('/api/transactions');
+      if (response.data) {
+        setTransactions(response.data);
       }
-      
-      const data = await response.json();
-      console.log('Received transactions:', data?.length || 0);
-      return data;
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
       setError('Failed to load transactions');
-      return [];
     }
   };
 
