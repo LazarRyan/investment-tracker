@@ -9,7 +9,17 @@ const INDICES = {
   "QQQ": "NASDAQ-100 (ETF)",
   "VGK": "FTSE Europe (ETF)",
   "EWJ": "Nikkei (ETF)",
-  "EWG": "DAX Germany (ETF)"
+  "EWG": "DAX Germany (ETF)",
+  // Add popular stocks
+  "AAPL": "Apple Inc.",
+  "MSFT": "Microsoft Corp.",
+  "GOOGL": "Alphabet Inc.",
+  "AMZN": "Amazon.com Inc.",
+  "META": "Meta Platforms Inc.",
+  "TSLA": "Tesla Inc.",
+  "NVDA": "NVIDIA Corp.",
+  "JPM": "JPMorgan Chase & Co.",
+  "V": "Visa Inc."
 };
 
 const CRYPTO = {
