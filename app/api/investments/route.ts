@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { withAuth } from '@/lib/middleware/withAuth';
+import { withAuth } from '@/utils/server-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Types

@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { withAuth } from '@/lib/middleware/withAuth';
+import { withAuth } from '@/utils/server-api';
 import { NextResponse } from 'next/server';
 
 export interface Transaction {
