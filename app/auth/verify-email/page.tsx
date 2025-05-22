@@ -35,7 +35,10 @@ export default function VerifyEmail() {
 
   const handleEmailConfirmation = async (token: string) => {
     try {
-      const { error } = await supabase.auth.verifyEmailChange(token);
+      const { error } = await supabase.auth.verifyOtp({
+        type: 'email_change',
+        token,
+      });
 
       if (error) {
         setError(error.message);
