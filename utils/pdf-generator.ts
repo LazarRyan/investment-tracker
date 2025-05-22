@@ -1,9 +1,7 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Investment } from '@/app/api/investments/route';
 
-// No need to extend jsPDF manually, the import above handles it
-// but we'll keep the TypeScript type definition
+// Define types for TypeScript
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -45,22 +43,49 @@ interface PortfolioReportOptions {
 /**
  * Generates a PDF report for a user's investment portfolio
  */
-export function generatePortfolioReport({
+export async function generatePortfolioReport({
   investments,
   portfolioGrade,
   assetGrades,
   userName = 'Investor',
   reportDate = new Date(),
-}: PortfolioReportOptions): Blob {
+}: PortfolioReportOptions): Promise<Blob> {
   // Initialize PDF document
   const doc = new jsPDF();
   
-  // Ensure autoTable is available
-  if (typeof doc.autoTable !== 'function') {
-    console.error('autoTable is not a function. Using manual tables instead.');
-    return generateBasicReport(investments, portfolioGrade, assetGrades, userName, reportDate);
+  try {
+    // Try to dynamically import and initialize autoTable
+    // This approach works better with Next.js bundling
+    const autoTableModule = await import('jspdf-autotable');
+    
+    // Apply the plugin to jsPDF
+    if (autoTableModule.default) {
+      autoTableModule.default(doc);
+    } else {
+      // Fallback if default export is not available
+      (autoTableModule as any)(doc);
+    }
+    
+    // Now proceed with the enhanced PDF generation
+    return generateEnhancedReport(doc, investments, portfolioGrade, assetGrades, userName, reportDate);
+  } catch (error) {
+    console.error('Error initializing autoTable:', error);
+    // Fallback to basic report if autoTable can't be loaded
+    return generateBasicReport(doc, investments, portfolioGrade, assetGrades, userName, reportDate);
   }
-  
+}
+
+/**
+ * Generates an enhanced PDF report using autoTable
+ */
+function generateEnhancedReport(
+  doc: jsPDF,
+  investments: InvestmentWithData[],
+  portfolioGrade?: PortfolioGradeData,
+  assetGrades?: AssetGradeData[],
+  userName: string = 'Investor',
+  reportDate: Date = new Date()
+): Blob {
   const dateFormatted = reportDate.toLocaleDateString();
   
   // Add title and header information
@@ -84,181 +109,191 @@ export function generatePortfolioReport({
   const totalGainLoss = currentValue - totalInvested;
   const totalGainLossPercentage = (totalGainLoss / totalInvested) * 100;
   
-  // Portfolio summary table
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.autoTable({
-    startY: 55,
-    head: [['Metric', 'Value']],
-    body: [
-      ['Total Investments', investments.length.toString()],
-      ['Total Invested', `$${totalInvested.toFixed(2)}`],
-      ['Current Value', `$${currentValue.toFixed(2)}`],
-      ['Gain/Loss', `$${totalGainLoss.toFixed(2)} (${totalGainLossPercentage.toFixed(2)}%)`],
-    ],
-    theme: 'grid',
-    headStyles: { fillColor: [0, 77, 153] },
-  });
-  
-  // Portfolio Grade if available
-  if (portfolioGrade) {
-    const currentY = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.setFontSize(16);
-    doc.setTextColor(0, 77, 153);
-    doc.text('Portfolio Grade', 20, currentY);
-    
+  try {
+    // Portfolio summary table
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     doc.autoTable({
-      startY: currentY + 5,
-      head: [['Category', 'Grade']],
+      startY: 55,
+      head: [['Metric', 'Value']],
       body: [
-        ['Overall', portfolioGrade.overall],
-        ['Diversification', portfolioGrade.diversification],
-        ['Risk Management', portfolioGrade.risk],
-        ['Performance', portfolioGrade.performance],
+        ['Total Investments', investments.length.toString()],
+        ['Total Invested', `$${totalInvested.toFixed(2)}`],
+        ['Current Value', `$${currentValue.toFixed(2)}`],
+        ['Gain/Loss', `$${totalGainLoss.toFixed(2)} (${totalGainLossPercentage.toFixed(2)}%)`],
       ],
       theme: 'grid',
       headStyles: { fillColor: [0, 77, 153] },
     });
     
-    // Analysis and recommendations
-    const analysisY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(14);
-    doc.setTextColor(0, 77, 153);
-    doc.text('Analysis & Recommendations', 20, analysisY);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    
-    let pointY = analysisY + 8;
-    portfolioGrade.analysis.forEach((point, index) => {
-      doc.text(`• ${point}`, 25, pointY);
-      pointY += 8;
+    // Portfolio Grade if available
+    if (portfolioGrade) {
+      const currentY = (doc as any).lastAutoTable.finalY + 10;
       
-      // Check if we need a new page
-      if (pointY > 280) {
-        doc.addPage();
-        pointY = 20;
-      }
-    });
-  }
-  
-  // Add a new page for investments
-  doc.addPage();
-  
-  // Investments table
-  doc.setFontSize(16);
-  doc.setTextColor(0, 77, 153);
-  doc.text('Investment Holdings', 20, 20);
-  
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  
-  const investmentRows = investments.map(inv => [
-    inv.symbol,
-    inv.name || inv.symbol,
-    inv.shares.toString(),
-    `$${inv.purchase_price.toFixed(2)}`,
-    `$${(inv.currentPrice || 0).toFixed(2)}`,
-    `$${(inv.totalValue || 0).toFixed(2)}`,
-    `${(inv.gainLossPercentage || 0).toFixed(2)}%`,
-  ]);
-  
-  doc.autoTable({
-    startY: 25,
-    head: [['Symbol', 'Name', 'Shares', 'Purchase Price', 'Current Price', 'Current Value', 'Return']],
-    body: investmentRows,
-    theme: 'grid',
-    headStyles: { fillColor: [0, 77, 153] },
-    styles: { overflow: 'linebreak', cellWidth: 'wrap' },
-    columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 20 },
-      3: { cellWidth: 25 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 25 },
-      6: { cellWidth: 20 },
-    }
-  });
-  
-  // Add individual asset analysis if available
-  if (assetGrades && assetGrades.length > 0) {
-    doc.addPage();
-    
-    doc.setFontSize(16);
-    doc.setTextColor(0, 77, 153);
-    doc.text('Individual Asset Analysis', 20, 20);
-    
-    let assetY = 30;
-    
-    assetGrades.forEach((asset, index) => {
-      // Add a page break if needed
-      if (assetY > 240) {
-        doc.addPage();
-        assetY = 20;
-      }
+      doc.setFontSize(16);
+      doc.setTextColor(0, 77, 153);
+      doc.text('Portfolio Grade', 20, currentY);
       
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.autoTable({
+        startY: currentY + 5,
+        head: [['Category', 'Grade']],
+        body: [
+          ['Overall', portfolioGrade.overall],
+          ['Diversification', portfolioGrade.diversification],
+          ['Risk Management', portfolioGrade.risk],
+          ['Performance', portfolioGrade.performance],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [0, 77, 153] },
+      });
+      
+      // Analysis and recommendations
+      const analysisY = (doc as any).lastAutoTable.finalY + 10;
       doc.setFontSize(14);
       doc.setTextColor(0, 77, 153);
-      doc.text(`${asset.symbol} - Grade: ${asset.grade}`, 20, assetY);
+      doc.text('Analysis & Recommendations', 20, analysisY);
       
-      assetY += 10;
-      
-      // Strengths
-      doc.setFontSize(12);
-      doc.setTextColor(0, 102, 0); // Dark green
-      doc.text('Strengths:', 25, assetY);
-      
-      assetY += 7;
+      doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
-      asset.strengths.forEach(strength => {
-        doc.text(`• ${strength}`, 30, assetY);
-        assetY += 7;
+      
+      let pointY = analysisY + 8;
+      portfolioGrade.analysis.forEach((point, index) => {
+        doc.text(`• ${point}`, 25, pointY);
+        pointY += 8;
+        
+        // Check if we need a new page
+        if (pointY > 280) {
+          doc.addPage();
+          pointY = 20;
+        }
       });
-      
-      assetY += 3;
-      
-      // Weaknesses
-      doc.setFontSize(12);
-      doc.setTextColor(153, 0, 0); // Dark red
-      doc.text('Areas of Concern:', 25, assetY);
-      
-      assetY += 7;
-      doc.setTextColor(0, 0, 0);
-      asset.weaknesses.forEach(weakness => {
-        doc.text(`• ${weakness}`, 30, assetY);
-        assetY += 7;
-      });
-      
-      assetY += 3;
-      
-      // Recommendations
-      doc.setFontSize(12);
-      doc.setTextColor(0, 77, 153); // Dark blue
-      doc.text('Recommendations:', 25, assetY);
-      
-      assetY += 7;
-      doc.setTextColor(0, 0, 0);
-      asset.recommendations.forEach(rec => {
-        doc.text(`• ${rec}`, 30, assetY);
-        assetY += 7;
-      });
-      
-      assetY += 15;
+    }
+    
+    // Add a new page for investments
+    doc.addPage();
+    
+    // Investments table
+    doc.setFontSize(16);
+    doc.setTextColor(0, 77, 153);
+    doc.text('Investment Holdings', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    
+    const investmentRows = investments.map(inv => [
+      inv.symbol,
+      inv.name || inv.symbol,
+      inv.shares.toString(),
+      `$${inv.purchase_price.toFixed(2)}`,
+      `$${(inv.currentPrice || 0).toFixed(2)}`,
+      `$${(inv.totalValue || 0).toFixed(2)}`,
+      `${(inv.gainLossPercentage || 0).toFixed(2)}%`,
+    ]);
+    
+    doc.autoTable({
+      startY: 25,
+      head: [['Symbol', 'Name', 'Shares', 'Purchase Price', 'Current Price', 'Current Value', 'Return']],
+      body: investmentRows,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 77, 153] },
+      styles: { overflow: 'linebreak', cellWidth: 'wrap' },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 20 },
+      }
     });
+    
+    // Add individual asset analysis if available
+    if (assetGrades && assetGrades.length > 0) {
+      doc.addPage();
+      
+      doc.setFontSize(16);
+      doc.setTextColor(0, 77, 153);
+      doc.text('Individual Asset Analysis', 20, 20);
+      
+      let assetY = 30;
+      
+      assetGrades.forEach((asset, index) => {
+        // Add a page break if needed
+        if (assetY > 240) {
+          doc.addPage();
+          assetY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.setTextColor(0, 77, 153);
+        doc.text(`${asset.symbol} - Grade: ${asset.grade}`, 20, assetY);
+        
+        assetY += 10;
+        
+        // Strengths
+        doc.setFontSize(12);
+        doc.setTextColor(0, 102, 0); // Dark green
+        doc.text('Strengths:', 25, assetY);
+        
+        assetY += 7;
+        doc.setTextColor(0, 0, 0);
+        asset.strengths.forEach(strength => {
+          doc.text(`• ${strength}`, 30, assetY);
+          assetY += 7;
+        });
+        
+        assetY += 3;
+        
+        // Weaknesses
+        doc.setFontSize(12);
+        doc.setTextColor(153, 0, 0); // Dark red
+        doc.text('Areas of Concern:', 25, assetY);
+        
+        assetY += 7;
+        doc.setTextColor(0, 0, 0);
+        asset.weaknesses.forEach(weakness => {
+          doc.text(`• ${weakness}`, 30, assetY);
+          assetY += 7;
+        });
+        
+        assetY += 3;
+        
+        // Recommendations
+        doc.setFontSize(12);
+        doc.setTextColor(0, 77, 153); // Dark blue
+        doc.text('Recommendations:', 25, assetY);
+        
+        assetY += 7;
+        doc.setTextColor(0, 0, 0);
+        asset.recommendations.forEach(rec => {
+          doc.text(`• ${rec}`, 30, assetY);
+          assetY += 7;
+        });
+        
+        assetY += 15;
+      });
+    }
+  } catch (error) {
+    console.error('Error using autoTable:', error);
+    // If there's an error with autoTable during generation, we'll continue with the basic content already added
   }
   
   // Add footer with date and page numbers
-  // Use a safer approach to get page count
-  const pageCount = (doc as any).internal.pages.length - 1;
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Generated on ${dateFormatted} | Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+  try {
+    // Use a safer approach to get page count
+    const pageCount = (doc as any).internal.pages.length - 1;
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated on ${dateFormatted} | Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+    }
+  } catch (error) {
+    console.error('Error adding page numbers:', error);
+    // If page numbering fails, just continue without it
   }
   
   // Return PDF as a blob
@@ -269,13 +304,13 @@ export function generatePortfolioReport({
  * Fallback function to generate a basic report without using autoTable
  */
 function generateBasicReport(
+  doc: jsPDF,
   investments: InvestmentWithData[],
   portfolioGrade?: PortfolioGradeData,
   assetGrades?: AssetGradeData[],
   userName: string = 'Investor',
   reportDate: Date = new Date()
 ): Blob {
-  const doc = new jsPDF();
   const dateFormatted = reportDate.toLocaleDateString();
   
   // Basic header

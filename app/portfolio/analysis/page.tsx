@@ -170,8 +170,8 @@ export default function PortfolioAnalysis() {
       const { data: { user } } = await supabase.auth.getUser();
       const userName = user?.email || 'Investor';
       
-      // Generate PDF blob
-      const pdfBlob = generatePortfolioReport({
+      // Generate PDF blob - now awaiting the async function
+      const pdfBlob = await generatePortfolioReport({
         investments: investments as InvestmentWithData[],
         portfolioGrade: portfolioGrade || undefined,
         assetGrades: assetGrades || [],
