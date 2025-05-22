@@ -13,14 +13,41 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  const handleResendVerification = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/auth/verify-email?type=signup');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setShowResend(false);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -30,30 +57,16 @@ export default function SignIn() {
 
       if (error) {
         if (error.message.includes('Email not confirmed')) {
-          // Send verification email and redirect to verify page
-          await supabase.auth.resend({
-            type: 'signup',
-            email,
-            options: {
-              redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
-            },
-          });
-          router.push('/auth/verify-email?type=signup');
+          setShowResend(true);
+          setError('Please verify your email address to sign in.');
           return;
         }
         setError(error.message);
       } else if (data?.user) {
         // Check if email is verified
         if (!data.user.email_confirmed_at) {
-          // Send verification email
-          await supabase.auth.resend({
-            type: 'signup',
-            email: data.user.email!,
-            options: {
-              redirectTo: `${window.location.origin}/auth/verify-email?type=signup`,
-            },
-          });
-          router.push('/auth/verify-email?type=signup');
+          setShowResend(true);
+          setError('Please verify your email address to sign in.');
           return;
         }
         
@@ -109,7 +122,26 @@ export default function SignIn() {
         <form className="mt-8 space-y-6" onSubmit={handleSignIn}>
           {error && (
             <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-700">{error}</p>
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                  {showResend && (
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={loading}
+                      className="mt-2 text-sm font-medium text-red-600 hover:text-red-500 disabled:opacity-50"
+                    >
+                      {loading ? 'Sending verification email...' : 'Resend verification email'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           <div className="space-y-4">
