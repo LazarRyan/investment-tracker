@@ -88,7 +88,7 @@ export default function SignIn() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithEmail({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/verify-email?type=magic_link`,
