@@ -66,9 +66,8 @@ export default function SignIn() {
           return;
         }
         
-        // Email is verified, redirect to the intended page or dashboard
-        const redirectTo = searchParams.get('redirect') || '/dashboard';
-        router.push(redirectTo);
+        // Email is verified, redirect to the dashboard
+        router.push('/dashboard');
       }
     } catch (err) {
       setError('An unexpected error occurred');

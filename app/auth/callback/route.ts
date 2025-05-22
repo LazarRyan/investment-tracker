@@ -5,11 +5,9 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
-
+  
   console.log('Auth callback received:', {
     code: code ? 'present' : 'missing',
-    next,
     fullUrl: request.url
   });
 
@@ -44,7 +42,7 @@ export async function GET(request: Request) {
 
       if (data.session) {
         console.log('Session established successfully');
-        return NextResponse.redirect(new URL(next, requestUrl.origin));
+        return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
       }
     } catch (error) {
       console.error('Error in auth callback:', error);

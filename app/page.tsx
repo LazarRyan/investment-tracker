@@ -34,14 +34,28 @@ export default function Home() {
   };
 
   const handleGetStarted = () => {
-    router.push('/auth/signup');
+    router.push('/auth/signin');
+  };
+
+  const handleSignIn = () => {
+    router.push('/auth/signin');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-[#1a1f35] to-[#0f172a]">
       {/* Stock Ticker */}
       <div className="border-b border-gray-800">
-      <StockTicker />
+        <StockTicker />
+      </div>
+
+      {/* Navigation */}
+      <div className="absolute top-0 right-0 p-4">
+        <button
+          onClick={handleSignIn}
+          className="text-white hover:text-[#6495ED] transition-colors text-sm font-medium"
+        >
+          Sign In
+        </button>
       </div>
 
       {/* Hero Section */}
@@ -63,7 +77,7 @@ export default function Home() {
             <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
               Track Your Investments
               <span className="block text-[#6495ED]">with Ease</span>
-          </h1>
+            </h1>
             <p className="mt-6 text-lg leading-8 text-gray-300 max-w-2xl mx-auto">
               Your personal investment dashboard for monitoring performance, analyzing trends, and making informed decisions in real-time.
             </p>
