@@ -58,7 +58,9 @@ export async function GET() {
 export async function POST(request: Request) {
   return withAuth(async (supabase, userId, req) => {
     try {
-      const transaction = await req.json();
+      // Use the passed request if req is undefined
+      const requestToUse = req || request;
+      const transaction = await requestToUse.json();
 
       // Verify that the investment belongs to the user
       const { data: investment, error: investmentError } = await supabase
@@ -100,7 +102,9 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   return withAuth(async (supabase, userId, req) => {
     try {
-      const { searchParams } = new URL(req.url);
+      // Use the passed request if req is undefined
+      const requestToUse = req || request;
+      const { searchParams } = new URL(requestToUse.url);
       const id = searchParams.get('id');
 
       if (!id) {
