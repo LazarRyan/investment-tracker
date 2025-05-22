@@ -26,12 +26,8 @@ export default function VerifyEmail() {
         return;
       }
 
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
+      const { error } = await supabase.auth.resendSignUp({
         email: user.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
       });
 
       if (error) {
