@@ -2,15 +2,10 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Investment } from '@/app/api/investments/route';
 
-// Extend jsPDF to include autoTable and other methods we need
+// Extend jsPDF to include autoTable only
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
-    internal: {
-      getNumberOfPages: () => number;
-      // Add other internal properties as needed
-      pages: any[];
-    };
   }
 }
 
@@ -249,12 +244,13 @@ export function generatePortfolioReport({
   }
   
   // Add footer with date and page numbers
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
+  // Use a safer approach to get page count
+  const pageCount = (doc as any).internal.pages.length - 1;
+  for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Generated on ${dateFormatted} | Page ${i} of ${totalPages}`, 105, 287, { align: 'center' });
+    doc.text(`Generated on ${dateFormatted} | Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
   }
   
   // Return PDF as a blob
