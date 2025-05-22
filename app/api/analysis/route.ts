@@ -1,6 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering since we're using cookies
+export const dynamic = 'force-dynamic';
+
 // Types
 interface InvestmentAnalysis {
   id: string;

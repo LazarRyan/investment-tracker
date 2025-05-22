@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { withAuth } from '@/utils/server-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// Force dynamic rendering since we're using cookies through withAuth
+export const dynamic = 'force-dynamic';
+
 // Types
 export interface Investment {
   id: string;

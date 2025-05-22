@@ -2,6 +2,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { Database } from '@/lib/types/supabase';
 
+// Force dynamic rendering since we're using cookies
+export const dynamic = 'force-dynamic';
+
 type UserSettings = Database['public']['Tables']['user_settings']['Row'];
 type UserSettingsUpdate = Database['public']['Tables']['user_settings']['Update'];
 
