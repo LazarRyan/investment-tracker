@@ -24,7 +24,6 @@ export default function Dashboard() {
   const [marketDataLoading, setMarketDataLoading] = useState(true);
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
   const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
-  const [portfolioSummary, setPortfolioSummary] = useState<any>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -70,23 +69,17 @@ export default function Dashboard() {
     const fetchData = async () => {
       setMarketDataLoading(true);
       try {
-        // Fetch market data
+        // Fetch market data only
         const marketResponse = await internalFetch('/api/market-data');
         if (marketResponse.data) {
           setMarketData(marketResponse.data);
           localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
         }
         
-        // Fetch portfolio summary
-        const summaryResponse = await internalFetch('/api/portfolio/summary');
-        if (summaryResponse.data) {
-          setPortfolioSummary(summaryResponse.data);
-        }
-        
         setMarketDataLoading(false);
         setMarketDataError(null);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching market data:', error);
         setMarketDataError('Failed to load market data');
         setMarketDataLoading(false);
       }
@@ -251,114 +244,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Portfolio Summary */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Portfolio Summary</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Portfolio Value */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Portfolio Value</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      ${marketDataLoading ? "..." : portfolioSummary?.portfolioValue.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">
-                    <svg className="h-6 w-6 text-[#6495ED]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.171-.879-1.171-2.303 0-3.182C10.582 7.759 11.35 7.54 12 7.54c.725 0 1.45.22 2.003.659" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Day Change:</span>
-                    <span className={`ml-2 text-sm font-medium ${(portfolioSummary?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${marketDataLoading ? "..." : Math.abs(portfolioSummary?.dayChange || 0).toFixed(2)} ({marketDataLoading ? "..." : (portfolioSummary?.dayChangePercentage || 0).toFixed(2)}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Gain/Loss */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Total Gain/Loss</h3>
-                    <p className={`mt-2 text-3xl font-semibold ${(portfolioSummary?.totalGainLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${marketDataLoading ? "..." : Math.abs(portfolioSummary?.totalGainLoss || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center">
-                    <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Return:</span>
-                    <span className={`ml-2 text-sm font-medium ${(portfolioSummary?.totalGainLossPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {marketDataLoading ? "..." : (portfolioSummary?.totalGainLossPercentage || 0).toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Invested */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Total Invested</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      ${marketDataLoading ? "..." : portfolioSummary?.totalInvested.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-purple-50 flex items-center justify-center">
-                    <svg className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Positions:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-700">
-                      {marketDataLoading ? "..." : portfolioSummary?.positions || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Portfolio Diversity */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Portfolio Diversity</h3>
-                    <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      {marketDataLoading ? "..." : portfolioSummary?.stocksCount || 0} Stocks
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-orange-50 flex items-center justify-center">
-                    <svg className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Sectors:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-700">
-                      {marketDataLoading ? "..." : portfolioSummary?.sectors || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Quick Actions */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -393,9 +278,6 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
                 </svg>
                 <span className="text-sm font-medium text-gray-900">Portfolio Analysis</span>
-                {(portfolioSummary?.totalGainLoss || 0) < 0 && (
-                  <span className="mt-1 text-xs font-medium text-red-500">Attention needed</span>
-                )}
               </button>
               
               <button
@@ -406,9 +288,6 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <span className="text-sm font-medium text-gray-900">Stock Screener</span>
-                {(portfolioSummary?.sectors || 0) <= 1 && (portfolioSummary?.positions || 0) > 0 && (
-                  <span className="mt-1 text-xs font-medium text-orange-500">Diversify portfolio</span>
-                )}
               </button>
             </div>
           </div>
@@ -431,4 +310,4 @@ export default function Dashboard() {
       </main>
     </div>
   );
-} 
+}

@@ -47,14 +47,31 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
       console.log(`Fetching market data for ${symbol}...`);
+      // First try to get current market data
       const response = await internalFetch(`/api/market-data?symbol=${symbol}`);
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.log(`No data available for ${symbol}`);
+      // If no current data available, fall back to historical data
+      if (!response.ok || response.status === 404) {
+        console.log(`No current data available for ${symbol}, fetching historical data...`);
+        const historicalResponse = await internalFetch(`/api/historical/${symbol}?limit=1`);
+        
+        if (!historicalResponse.ok) {
+          console.log(`No historical data available for ${symbol}`);
           return null;
         }
-        throw new Error('Failed to fetch market data');
+        
+        const historicalData = await historicalResponse.json();
+        if (Array.isArray(historicalData) && historicalData.length > 0) {
+          const latestData = historicalData[0];
+          console.log(`Received historical data for ${symbol}:`, latestData);
+          
+          return {
+            price: latestData.price,
+            change: latestData.change_percentage || 0,
+            is_market_hours: latestData.is_market_hours
+          };
+        }
+        return null;
       }
       
       const data = await response.json();
