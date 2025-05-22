@@ -65,26 +65,49 @@ export async function POST(request: Request) {
       // Verify that the investment belongs to the user
       const { data: investment, error: investmentError } = await supabase
         .from('investments')
-        .select('id')
+        .select('id, user_id, symbol')
         .eq('id', transaction.investment_id)
-        .eq('user_id', userId)
         .single();
 
-      if (investmentError || !investment) {
+      if (investmentError) {
+        console.error('Error verifying investment ownership:', investmentError);
         return NextResponse.json(
-          { error: 'Investment not found or unauthorized' },
+          { 
+            error: 'Failed to verify investment ownership',
+            details: investmentError.message
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!investment) {
+        console.error('Investment not found:', transaction.investment_id);
+        return NextResponse.json(
+          { error: 'Investment not found' },
+          { status: 404 }
+        );
+      }
+
+      if (investment.user_id !== userId) {
+        console.error('Unauthorized investment access attempt. Investment belongs to:', investment.user_id, 'Request from:', userId);
+        return NextResponse.json(
+          { error: 'Unauthorized access to this investment' },
           { status: 403 }
         );
       }
 
-      // Insert the transaction
+      // Insert the transaction with user_id field to ensure proper ownership
       const { data, error } = await supabase
         .from('transactions')
-        .insert([transaction])
+        .insert([{
+          ...transaction,
+          user_id: userId // Add user_id to ensure proper ownership
+        }])
         .select()
         .single();
 
       if (error) {
+        console.error('Error creating transaction:', error);
         throw error;
       }
 
@@ -92,7 +115,10 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('Error creating transaction:', error);
       return NextResponse.json(
-        { error: 'Failed to create transaction' },
+        { 
+          error: 'Failed to create transaction',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
         { status: 500 }
       );
     }

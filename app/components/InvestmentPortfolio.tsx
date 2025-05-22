@@ -237,7 +237,6 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
     return (
       <SellInvestmentForm
         investment={sellInvestment}
-        currentPrice={sellInvestment.currentPrice}
         onSuccess={handleSellSuccess}
         onCancel={handleSellCancel}
       />

@@ -25,6 +25,7 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
     setError(null);
 
     try {
+      // First create the investment
       const response = await fetch('/api/investments', {
         method: 'POST',
         headers: {
@@ -38,12 +39,14 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add investment');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add investment');
       }
 
       const investment = await response.json();
+      console.log('Investment created:', investment);
 
-      // Create a BUY transaction
+      // Then create a BUY transaction
       const transactionResponse = await fetch('/api/transactions', {
         method: 'POST',
         headers: {
@@ -62,12 +65,16 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
       });
 
       if (!transactionResponse.ok) {
-        throw new Error('Failed to create transaction');
+        const errorData = await transactionResponse.json();
+        console.error('Transaction creation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create transaction');
       }
 
+      console.log('Transaction created successfully');
       onSuccess();
     } catch (err) {
-      setError('Failed to add investment. Please try again.');
+      console.error('Error in form submission:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add investment. Please try again.');
     } finally {
       setLoading(false);
     }
