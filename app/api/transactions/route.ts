@@ -62,7 +62,24 @@ export async function POST(request: Request) {
       const requestToUse = req || request;
       const transaction = await requestToUse.json();
 
-      // Verify that the investment belongs to the user
+      // Validate required fields
+      if (!transaction.investment_id) {
+        console.error('Missing investment_id in transaction request:', transaction);
+        return NextResponse.json(
+          { error: 'Investment ID is required for transaction' },
+          { status: 400 }
+        );
+      }
+
+      if (!transaction.symbol || !transaction.type || !transaction.shares || !transaction.price) {
+        console.error('Missing required fields in transaction request:', transaction);
+        return NextResponse.json(
+          { error: 'Required transaction fields are missing' },
+          { status: 400 }
+        );
+      }
+
+      // Verify that the investment exists and belongs to the user
       const { data: investment, error: investmentError } = await supabase
         .from('investments')
         .select('id, user_id, symbol')
@@ -70,7 +87,7 @@ export async function POST(request: Request) {
         .single();
 
       if (investmentError) {
-        console.error('Error verifying investment ownership:', investmentError);
+        console.error('Error verifying investment ownership:', investmentError, 'for investment_id:', transaction.investment_id);
         return NextResponse.json(
           { 
             error: 'Failed to verify investment ownership',
@@ -101,7 +118,9 @@ export async function POST(request: Request) {
         .from('transactions')
         .insert([{
           ...transaction,
-          user_id: userId // Add user_id to ensure proper ownership
+          user_id: userId, // Add user_id to ensure proper ownership
+          // Add created_at timestamp
+          created_at: new Date().toISOString()
         }])
         .select()
         .single();

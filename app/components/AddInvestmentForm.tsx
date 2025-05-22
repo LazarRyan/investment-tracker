@@ -43,8 +43,20 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
         throw new Error(errorData.error || 'Failed to add investment');
       }
 
-      const investment = await response.json();
+      let investment = await response.json();
       console.log('Investment created:', investment);
+
+      // Check if investment has warning (duplicate found)
+      if (investment.warning) {
+        console.log('Duplicate investment warning:', investment.warning);
+        investment = investment.investment; // Use the existing investment
+      }
+
+      // Verify we have a valid investment object with an ID
+      if (!investment || !investment.id) {
+        console.error('Invalid investment object received:', investment);
+        throw new Error('Invalid investment data received from server');
+      }
 
       // Then create a BUY transaction
       const transactionResponse = await fetch('/api/transactions', {
