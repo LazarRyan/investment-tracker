@@ -76,11 +76,10 @@ export default function VerifyEmail() {
       let error;
       switch (verificationType) {
         case 'signup':
-          ({ error } = await supabase.auth.resend({
-            type: 'signup',
+          ({ error } = await supabase.auth.signInWithOtp({
             email: user.email,
             options: {
-              redirectTo: `${window.location.origin}/auth/verify-email?type=signup`
+              emailRedirectTo: `${window.location.origin}/auth/verify-email?type=signup`
             }
           }));
           break;
@@ -90,20 +89,18 @@ export default function VerifyEmail() {
           }));
           break;
         case 'email_change':
-          ({ error } = await supabase.auth.resend({
-            type: 'email_change',
+          ({ error } = await supabase.auth.signInWithOtp({
             email: user.email,
             options: {
-              redirectTo: `${window.location.origin}/auth/verify-email?type=email_change`
+              emailRedirectTo: `${window.location.origin}/auth/verify-email?type=email_change`
             }
           }));
           break;
         default:
-          ({ error } = await supabase.auth.resend({
-            type: 'signup',
+          ({ error } = await supabase.auth.signInWithOtp({
             email: user.email,
             options: {
-              redirectTo: `${window.location.origin}/auth/verify-email`
+              emailRedirectTo: `${window.location.origin}/auth/verify-email`
             }
           }));
       }
