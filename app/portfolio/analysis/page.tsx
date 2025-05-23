@@ -6,8 +6,13 @@ import { createClient } from '@/lib/supabase/client';
 import { generatePortfolioReport, InvestmentWithData } from '../../../utils/pdf-generator';
 
 interface MarketData {
-  price: number;
+  price: number | null;
   change: number;
+  symbol?: string;
+  is_market_hours?: boolean;
+  timestamp?: string;
+  type?: string;
+  error?: string;
 }
 
 interface InvestmentWithMarketData extends Investment {
