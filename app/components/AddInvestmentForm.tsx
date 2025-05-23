@@ -15,7 +15,13 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
     symbol: '',
     shares: '',
     purchase_price: '',
-    purchase_date: new Date().toLocaleDateString('en-CA'),
+    purchase_date: (() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
     notes: ''
   });
 

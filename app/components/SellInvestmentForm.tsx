@@ -16,7 +16,13 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
   const [formData, setFormData] = useState({
     shares: investment.shares.toString(),
     sell_price: '',
-    sell_date: new Date().toLocaleDateString('en-CA'),
+    sell_date: (() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
     notes: ''
   });
 
@@ -53,7 +59,9 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
       return;
     }
     
-    if (sharesToSell > investment.shares) {
+    // Use tolerance for share validation too
+    const tolerance = 0.0001;
+    if (sharesToSell > investment.shares + tolerance) {
       setError(`You only have ${investment.shares} shares of ${investment.symbol}`);
       setLoading(false);
       return;
@@ -86,14 +94,18 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
       }
 
       // If selling all shares (with floating-point tolerance), mark investment as sold
-      const tolerance = 0.0001; // Small tolerance for floating-point comparison
-      if (Math.abs(sharesToSell - investment.shares) < tolerance) {
+      const difference = Math.abs(sharesToSell - investment.shares);
+      console.log(`Sell comparison: ${sharesToSell} vs ${investment.shares}, difference: ${difference}, tolerance: ${tolerance}`);
+      
+      if (difference < tolerance) {
+        console.log('Deleting investment - selling all shares');
         await fetch(`/api/investments?id=${investment.id}`, {
           method: 'DELETE'
         });
       } 
       // If selling part of the shares, update remaining shares
       else if (sharesToSell < investment.shares) {
+        console.log('Updating investment - partial sale');
         await fetch(`/api/investments?id=${investment.id}`, {
           method: 'PATCH',
           headers: {
