@@ -254,16 +254,24 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            disabled={loading}
+            className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-[#6495ED] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#4169E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6495ED] disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-[#6495ED] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#4169E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6495ED] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Processing...' : 'Sell Investment'}
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Processing Sale...
+              </>
+            ) : (
+              'Sell Investment'
+            )}
           </button>
         </div>
       </form>

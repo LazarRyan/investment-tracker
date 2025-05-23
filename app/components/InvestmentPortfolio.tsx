@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Investment } from '../api/investments/route';
 import SellInvestmentForm from './SellInvestmentForm';
 import { internalFetch } from '../../utils/api';
+import { debounceAsync } from '../../utils/debounce';
 
 interface MarketData {
   price: number;
@@ -31,6 +32,10 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
   const [error, setError] = useState<string | null>(null);
   const [sellInvestment, setSellInvestment] = useState<InvestmentWithMarketData | null>(null);
   const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
+  
+  // Add loading states for individual buttons
+  const [buttonLoading, setButtonLoading] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchInvestments = async () => {
     try {
@@ -124,14 +129,30 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
     setInvestments(updatedInvestments);
   };
 
-  const loadInvestments = async () => {
+  const loadInvestmentsInternal = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous calls
+    
     console.log('Loading investments...');
+    setRefreshing(true);
     setLoading(true);
-    const investments = await fetchInvestments();
-    console.log('Fetched investments:', investments);
-    await updateInvestmentsWithMarketData(investments);
-    setLoading(false);
+    try {
+      const investments = await fetchInvestments();
+      console.log('Fetched investments:', investments);
+      await updateInvestmentsWithMarketData(investments);
+    } catch (error) {
+      console.error('Error loading investments:', error);
+      setError('Failed to load investments');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
+
+  // Create debounced version of loadInvestments
+  const loadInvestments = useCallback(
+    debounceAsync(loadInvestmentsInternal, 500),
+    [refreshing]
+  );
 
   useEffect(() => {
     // Initial load
@@ -151,6 +172,22 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
     };
   }, []); // Remove isMarketHours dependency since we're using historical data
 
+  // Helper function to handle button loading states
+  const handleButtonClick = async (
+    buttonKey: string,
+    action: () => Promise<void>
+  ) => {
+    setButtonLoading(prev => ({ ...prev, [buttonKey]: true }));
+    try {
+      await action();
+    } catch (error) {
+      console.error(`Error in ${buttonKey}:`, error);
+      setError(`Failed to ${buttonKey.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+    } finally {
+      setButtonLoading(prev => ({ ...prev, [buttonKey]: false }));
+    }
+  };
+
   const handleSellClick = (investment: InvestmentWithMarketData) => {
     setSellInvestment(investment);
   };
@@ -167,7 +204,7 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
   };
 
   const handleDelete = async (investment: InvestmentWithMarketData) => {
-    try {
+    await handleButtonClick(`delete-${investment.id}`, async () => {
       // Create a sell transaction
       const response = await fetch('/api/transactions', {
         method: 'POST',
@@ -215,10 +252,7 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
       await loadInvestments();
       // Notify parent component that data has changed
       onDataChange?.();
-    } catch (err) {
-      console.error('Error selling investment:', err);
-      setError('Failed to sell investment');
-    }
+    });
   };
 
   const handleSell = async (investmentId: string, quantity: number, currentPrice: number) => {
@@ -256,6 +290,36 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
 
   return (
     <div className="space-y-6">
+      {/* Error display */}
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    setError(null);
+                    loadInvestments();
+                  }}
+                  className="bg-red-50 text-red-800 rounded-md px-2 py-1 text-sm font-medium hover:bg-red-100"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Investments Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="sm:flex sm:items-center p-4 sm:justify-between">
@@ -265,6 +329,25 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
               {investments.length} {investments.length === 1 ? 'investment' : 'investments'} in your portfolio
             </p>
           </div>
+          <button
+            onClick={loadInvestments}
+            disabled={refreshing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6495ED] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#6495ED] mr-2"></div>
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                Refresh
+              </>
+            )}
+          </button>
         </div>
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="mt-2 flex flex-col">
@@ -345,15 +428,24 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
                               <div className="flex space-x-2">
                                 <button
                                   onClick={() => handleSellClick(investment)}
-                                  className="text-sm font-medium text-red-600 hover:text-red-900"
+                                  disabled={buttonLoading[`sell-${investment.id}`]}
+                                  className="text-sm font-medium text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  Sell
+                                  {buttonLoading[`sell-${investment.id}`] ? 'Loading...' : 'Sell'}
                                 </button>
                                 <button
                                   onClick={() => handleDelete(investment)}
-                                  className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                                  disabled={buttonLoading[`delete-${investment.id}`]}
+                                  className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  Delete
+                                  {buttonLoading[`delete-${investment.id}`] ? (
+                                    <div className="flex items-center">
+                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600 mr-1"></div>
+                                      Deleting...
+                                    </div>
+                                  ) : (
+                                    'Delete'
+                                  )}
                                 </button>
                               </div>
                             </td>

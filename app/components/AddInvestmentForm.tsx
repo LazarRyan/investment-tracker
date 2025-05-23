@@ -122,7 +122,8 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
             name="symbol"
             id="symbol"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm"
+            disabled={loading}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={formData.symbol}
             onChange={handleChange}
             placeholder="e.g., AAPL"
@@ -140,7 +141,8 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
             required
             min="0"
             step="0.0001"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm"
+            disabled={loading}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={formData.shares}
             onChange={handleChange}
             placeholder="0.00"
@@ -158,7 +160,8 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
             required
             min="0"
             step="0.01"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm"
+            disabled={loading}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={formData.purchase_price}
             onChange={handleChange}
             placeholder="0.00"
@@ -174,7 +177,8 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
             name="purchase_date"
             id="purchase_date"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm"
+            disabled={loading}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={formData.purchase_date}
             onChange={handleChange}
           />
@@ -188,7 +192,8 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
             name="notes"
             id="notes"
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm"
+            disabled={loading}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#6495ED] focus:ring-[#6495ED] sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={formData.notes}
             onChange={handleChange}
             placeholder="Optional notes about this investment"
@@ -199,16 +204,24 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            disabled={loading}
+            className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-[#6495ED] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#4169E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6495ED] disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-[#6495ED] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#4169E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6495ED] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Adding...' : 'Add Investment'}
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Adding Investment...
+              </>
+            ) : (
+              'Add Investment'
+            )}
           </button>
         </div>
       </form>

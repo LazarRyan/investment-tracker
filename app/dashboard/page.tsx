@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import InvestmentPortfolio from '../components/InvestmentPortfolio';
 import AddInvestmentForm from '../components/AddInvestmentForm';
 import { internalFetch } from '../../utils/api';
+import { debounceAsync } from '../../utils/debounce';
 
 interface MarketIndex {
   symbol: string;
@@ -26,6 +27,18 @@ export default function Dashboard() {
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
   const [isMarketHours, setIsMarketHours] = useState<boolean>(false);
   const [portfolioSummary, setPortfolioSummary] = useState<any>(null);
+  
+  // Add loading states for buttons
+  const [refreshing, setRefreshing] = useState(false);
+  const [buttonLoading, setButtonLoading] = useState({
+    addInvestment: false,
+    viewTransactions: false,
+    portfolioAnalysis: false,
+    stockScreener: false,
+    signOut: false,
+    createAccount: false
+  });
+  
   const supabase = createClient();
   const router = useRouter();
 
@@ -96,8 +109,11 @@ export default function Dashboard() {
     }
   }, [user, isGuest, loading]);
 
-  // Extract the data fetching logic into a separate function
-  const fetchDashboardData = async () => {
+  // Extract the data fetching logic into a separate function with loading state
+  const fetchDashboardDataInternal = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous calls
+    
+    setRefreshing(true);
     setMarketDataLoading(true);
     try {
       // Fetch market data
@@ -119,8 +135,16 @@ export default function Dashboard() {
       console.error('Error fetching dashboard data:', error);
       setMarketDataError('Failed to load market data');
       setMarketDataLoading(false);
+    } finally {
+      setRefreshing(false);
     }
   };
+
+  // Create debounced version of fetchDashboardData
+  const fetchDashboardData = useCallback(
+    debounceAsync(fetchDashboardDataInternal, 500),
+    [refreshing]
+  );
 
   // Show loading state while checking authentication
   if (loading) {
@@ -134,6 +158,56 @@ export default function Dashboard() {
     );
   }
 
+  // Helper function to handle button loading states
+  const handleButtonClick = async (
+    buttonKey: keyof typeof buttonLoading,
+    action: () => Promise<void> | void
+  ) => {
+    setButtonLoading(prev => ({ ...prev, [buttonKey]: true }));
+    try {
+      await action();
+    } finally {
+      setButtonLoading(prev => ({ ...prev, [buttonKey]: false }));
+    }
+  };
+
+  // Enhanced button handlers with loading states
+  const handleAddInvestmentClick = () => {
+    handleButtonClick('addInvestment', async () => {
+      setShowAddForm(true);
+    });
+  };
+
+  const handleViewTransactionsClick = () => {
+    handleButtonClick('viewTransactions', async () => {
+      router.push('/transactions');
+    });
+  };
+
+  const handlePortfolioAnalysisClick = () => {
+    handleButtonClick('portfolioAnalysis', async () => {
+      router.push('/portfolio/analysis');
+    });
+  };
+
+  const handleStockScreenerClick = () => {
+    handleButtonClick('stockScreener', async () => {
+      window.open('https://finance.yahoo.com/screener/new', '_blank');
+    });
+  };
+
+  const handleSignOutClick = () => {
+    handleButtonClick('signOut', async () => {
+      await supabase.auth.signOut();
+    });
+  };
+
+  const handleCreateAccountClick = () => {
+    handleButtonClick('createAccount', async () => {
+      router.push('/auth/signup');
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Navigation Bar */}
@@ -146,19 +220,21 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               {isGuest ? (
                 <button
-                  onClick={() => router.push('/auth/signup')}
-                  className="text-sm font-medium text-[#6495ED] hover:text-[#4169E1]"
+                  onClick={handleCreateAccountClick}
+                  disabled={buttonLoading.createAccount}
+                  className="text-sm font-medium text-[#6495ED] hover:text-[#4169E1] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Account
+                  {buttonLoading.createAccount ? 'Loading...' : 'Create Account'}
                 </button>
               ) : (
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-500">Welcome, {user?.email}</span>
                   <button
-                    onClick={() => supabase.auth.signOut()}
-                    className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                    onClick={handleSignOutClick}
+                    disabled={buttonLoading.signOut}
+                    className="text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Sign Out
+                    {buttonLoading.signOut ? 'Signing out...' : 'Sign Out'}
                   </button>
                 </div>
               )}
@@ -185,10 +261,11 @@ export default function Dashboard() {
                     <p>
                       You are using the application in guest mode. Your data will not be saved and will be lost when the session expires.{' '}
                       <button
-                        onClick={() => router.push('/auth/signup')}
-                        className="font-medium text-yellow-800 underline hover:text-yellow-900"
+                        onClick={handleCreateAccountClick}
+                        disabled={buttonLoading.createAccount}
+                        className="font-medium text-yellow-800 underline hover:text-yellow-900 disabled:opacity-50"
                       >
-                        Create an account
+                        {buttonLoading.createAccount ? 'Loading...' : 'Create an account'}
                       </button>
                       {' '}to save your progress.
                     </p>
@@ -198,12 +275,33 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Dashboard Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Investment Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Track and manage your investment portfolio
-            </p>
+          {/* Dashboard Header with Refresh Button */}
+          <div className="mb-8 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Investment Dashboard</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Track and manage your investment portfolio
+              </p>
+            </div>
+            <button
+              onClick={fetchDashboardData}
+              disabled={refreshing}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6495ED] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {refreshing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#6495ED] mr-2"></div>
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  Refresh
+                </>
+              )}
+            </button>
           </div>
 
           {/* Market Overview */}
@@ -242,10 +340,11 @@ export default function Dashboard() {
                     </svg>
                     <p className="text-sm text-red-600 font-medium">{marketDataError}</p>
                     <button 
-                      onClick={() => window.location.reload()}
-                      className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                      onClick={fetchDashboardData}
+                      disabled={refreshing}
+                      className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Retry
+                      {refreshing ? 'Retrying...' : 'Retry'}
                     </button>
                   </div>
                 </div>
@@ -290,10 +389,11 @@ export default function Dashboard() {
                     </svg>
                     <p className="text-sm text-gray-700 font-medium">No market data available</p>
                     <button 
-                      onClick={() => window.location.reload()}
-                      className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                      onClick={fetchDashboardData}
+                      disabled={refreshing}
+                      className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Retry
+                      {refreshing ? 'Retrying...' : 'Retry'}
                     </button>
                   </div>
                 </div>
@@ -416,47 +516,75 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button
-                onClick={() => setShowAddForm(true)}
-                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+                onClick={handleAddInvestmentClick}
+                disabled={buttonLoading.addInvestment}
+                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
-                </svg>
-                <span className="text-sm font-medium text-gray-900">Add Investment</span>
+                {buttonLoading.addInvestment ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#6495ED] mb-2"></div>
+                ) : (
+                  <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+                  </svg>
+                )}
+                <span className="text-sm font-medium text-gray-900">
+                  {buttonLoading.addInvestment ? 'Loading...' : 'Add Investment'}
+                </span>
               </button>
               
               <button
-                onClick={() => router.push('/transactions')}
-                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+                onClick={handleViewTransactionsClick}
+                disabled={buttonLoading.viewTransactions}
+                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                </svg>
-                <span className="text-sm font-medium text-gray-900">View Transactions</span>
+                {buttonLoading.viewTransactions ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#6495ED] mb-2"></div>
+                ) : (
+                  <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                  </svg>
+                )}
+                <span className="text-sm font-medium text-gray-900">
+                  {buttonLoading.viewTransactions ? 'Loading...' : 'View Transactions'}
+                </span>
               </button>
               
               <button
-                onClick={() => router.push('/portfolio/analysis')}
-                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+                onClick={handlePortfolioAnalysisClick}
+                disabled={buttonLoading.portfolioAnalysis}
+                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-900">Portfolio Analysis</span>
-                {(portfolioSummary?.totalGainLoss || 0) < 0 && (
+                {buttonLoading.portfolioAnalysis ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#6495ED] mb-2"></div>
+                ) : (
+                  <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                  </svg>
+                )}
+                <span className="text-sm font-medium text-gray-900">
+                  {buttonLoading.portfolioAnalysis ? 'Loading...' : 'Portfolio Analysis'}
+                </span>
+                {(portfolioSummary?.totalGainLoss || 0) < 0 && !buttonLoading.portfolioAnalysis && (
                   <span className="mt-1 text-xs font-medium text-red-500">Attention needed</span>
                 )}
               </button>
               
               <button
-                onClick={() => window.open('https://finance.yahoo.com/screener/new', '_blank')}
-                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+                onClick={handleStockScreenerClick}
+                disabled={buttonLoading.stockScreener}
+                className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-900">Stock Screener</span>
-                {(portfolioSummary?.sectors || 0) <= 1 && (portfolioSummary?.positions || 0) > 0 && (
+                {buttonLoading.stockScreener ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#6495ED] mb-2"></div>
+                ) : (
+                  <svg className="h-6 w-6 text-[#6495ED] mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                )}
+                <span className="text-sm font-medium text-gray-900">
+                  {buttonLoading.stockScreener ? 'Loading...' : 'Stock Screener'}
+                </span>
+                {(portfolioSummary?.sectors || 0) <= 1 && (portfolioSummary?.positions || 0) > 0 && !buttonLoading.stockScreener && (
                   <span className="mt-1 text-xs font-medium text-orange-500">Diversify portfolio</span>
                 )}
               </button>
@@ -475,7 +603,7 @@ export default function Dashboard() {
             />
           ) : (
             <InvestmentPortfolio 
-              onAddClick={() => setShowAddForm(true)}
+              onAddClick={handleAddInvestmentClick}
               onDataChange={fetchDashboardData}
             />
           )}
