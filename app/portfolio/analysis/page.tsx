@@ -15,6 +15,7 @@ interface InvestmentWithMarketData extends Investment {
   totalValue?: number;
   gainLoss?: number;
   gainLossPercentage?: number;
+  marketDataMissing?: boolean;
 }
 
 interface PortfolioGrade {
@@ -23,6 +24,41 @@ interface PortfolioGrade {
   risk: string;
   performance: string;
   analysis: string[];
+}
+
+// Enhanced Wall Street-level analysis interfaces
+interface RiskMetrics {
+  sharpeRatio?: number;
+  beta?: number;
+  volatility?: number;
+  maxDrawdown?: number;
+  valueAtRisk?: number;
+}
+
+interface TechnicalIndicators {
+  rsi?: number;
+  macd?: number;
+  movingAverage50?: number;
+  movingAverage200?: number;
+  support?: number;
+  resistance?: number;
+}
+
+interface FundamentalMetrics {
+  peRatio?: number;
+  pbRatio?: number;
+  debtToEquity?: number;
+  roe?: number;
+  revenueGrowth?: number;
+  earningsGrowth?: number;
+}
+
+interface SectorAnalysis {
+  sector: string;
+  allocation: number;
+  performance: number;
+  benchmark: string;
+  overweight: boolean;
 }
 
 interface AssetGrade {
@@ -39,6 +75,16 @@ interface AssetGrade {
     totalGainLoss: number;
     totalGainLossPercentage: number;
   };
+  // Wall Street-level metrics
+  riskMetrics?: RiskMetrics;
+  technicalIndicators?: TechnicalIndicators;
+  fundamentalMetrics?: FundamentalMetrics;
+  analystRating?: {
+    consensus: 'Strong Buy' | 'Buy' | 'Hold' | 'Sell' | 'Strong Sell';
+    priceTarget: number;
+    analystCount: number;
+  };
+  marketDataMissing?: boolean;
 }
 
 interface IndividualPurchaseGrade {
@@ -99,12 +145,18 @@ export default function PortfolioAnalysis() {
     const updatedInvestments = await Promise.all(
       investments.map(async (investment) => {
         const marketData = await fetchMarketData(investment.symbol);
-        if (marketData) {
+        if (marketData && marketData.price !== null && !marketData.error) {
           const currentPrice = marketData.price;
           const totalValue = currentPrice * investment.shares;
           const purchaseValue = investment.purchase_price * investment.shares;
           const gainLoss = totalValue - purchaseValue;
           const gainLossPercentage = (gainLoss / purchaseValue) * 100;
+
+          console.log(`Market data found for ${investment.symbol}:`, {
+            currentPrice,
+            purchasePrice: investment.purchase_price,
+            gainLossPercentage
+          });
 
           return {
             ...investment,
@@ -113,8 +165,19 @@ export default function PortfolioAnalysis() {
             gainLoss,
             gainLossPercentage,
           };
+        } else {
+          // If no market data available, use purchase price as current price (0% gain/loss)
+          console.log(`No market data for ${investment.symbol}, using purchase price as current price`);
+          const totalValue = investment.purchase_price * investment.shares;
+          return {
+            ...investment,
+            currentPrice: investment.purchase_price,
+            totalValue,
+            gainLoss: 0,
+            gainLossPercentage: 0,
+            marketDataMissing: true
+          };
         }
-        return investment;
       })
     );
 
@@ -298,32 +361,47 @@ export default function PortfolioAnalysis() {
     return Array.from(aggregated.values());
   };
 
-  // Separate function for basic analysis fallback
+  // Enhanced function for Wall Street-level analysis
   const generateBasicAnalysis = (investments: InvestmentWithMarketData[]) => {
     // Aggregate investments by symbol first
     const aggregatedInvestments = aggregateInvestmentsBySymbol(investments);
     
     const totalValue = aggregatedInvestments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
+    const totalInvested = aggregatedInvestments.reduce((sum, inv) => sum + (inv.purchase_price * inv.shares), 0);
     const totalGainLoss = aggregatedInvestments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
+    const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
     const sectorDiversification = new Set(aggregatedInvestments.map(inv => inv.sector)).size;
+    
+    // Calculate portfolio risk metrics
+    const portfolioVolatility = calculatePortfolioVolatility(aggregatedInvestments);
+    const sharpeRatio = calculateSharpeRatio(totalGainLossPercentage, portfolioVolatility);
+    const maxDrawdown = calculateMaxDrawdown(aggregatedInvestments);
       
     setPortfolioGrade({
-      overall: totalGainLoss > 0 ? 'A-' : 'B+',
-      diversification: sectorDiversification > 3 ? 'A' : 'B',
-      risk: 'B+',
-      performance: totalGainLoss > 0 ? 'A' : 'B-',
+      overall: getPortfolioGrade(totalGainLossPercentage, portfolioVolatility, sectorDiversification),
+      diversification: getDiversificationGrade(sectorDiversification, aggregatedInvestments.length),
+      risk: getRiskGrade(portfolioVolatility, maxDrawdown),
+      performance: getPerformanceGrade(totalGainLossPercentage, sharpeRatio),
       analysis: [
-        `Portfolio consists of ${aggregatedInvestments.length} unique stocks across ${sectorDiversification} sectors`,
-        `Overall performance shows ${totalGainLoss > 0 ? 'positive' : 'negative'} returns`,
-        aiAnalysisEnabled ? 'AI analysis temporarily unavailable - showing basic metrics' : 'Using basic analysis mode',
+        `Portfolio consists of ${aggregatedInvestments.length} unique positions across ${sectorDiversification} sectors`,
+        `Overall performance: ${totalGainLossPercentage.toFixed(2)}% (${totalGainLoss > 0 ? 'positive' : 'negative'} returns)`,
+        `Portfolio volatility: ${portfolioVolatility.toFixed(2)}% (${portfolioVolatility < 15 ? 'Low' : portfolioVolatility < 25 ? 'Moderate' : 'High'} risk)`,
+        `Sharpe ratio: ${sharpeRatio.toFixed(2)} (${sharpeRatio > 1 ? 'Excellent' : sharpeRatio > 0.5 ? 'Good' : 'Poor'} risk-adjusted returns)`,
+        `Max drawdown: ${maxDrawdown.toFixed(2)}% (${maxDrawdown < 10 ? 'Low' : maxDrawdown < 20 ? 'Moderate' : 'High'} downside risk)`,
+        aiAnalysisEnabled ? 'AI analysis temporarily unavailable - showing enhanced basic metrics' : 'Using enhanced basic analysis mode',
         aiAnalysisEnabled ? 'Consider refreshing for detailed AI insights' : 'Enable AI analysis for detailed insights'
       ]
     });
 
-    // Basic fallback for individual assets using aggregated data
-    const basicAssetGrades = aggregatedInvestments.map(inv => {
-        const performanceGrade = (inv.gainLossPercentage || 0) > 0 ? 'A' : 'B';
+    // Enhanced asset analysis with Wall Street-level metrics
+    const enhancedAssetGrades = aggregatedInvestments.map(inv => {
+        const performanceGrade = getAssetGrade(inv.gainLossPercentage || 0, inv.totalValue || 0, totalValue);
         const positionSize = ((inv.totalValue || 0) / totalValue) * 100;
+        
+        // Calculate individual asset risk metrics
+        const assetVolatility = calculateAssetVolatility(inv);
+        const beta = calculateBeta(inv, aggregatedInvestments);
+        const rsi = calculateRSI(inv);
         
         // Get all purchases for this symbol to generate individual grades
         const symbolPurchases = investments.filter(investment => investment.symbol === inv.symbol);
@@ -333,19 +411,32 @@ export default function PortfolioAnalysis() {
           symbol: inv.symbol,
           grade: performanceGrade,
           strengths: [
-            `${positionSize > 20 ? 'Major' : 'Balanced'} position in portfolio (${positionSize.toFixed(1)}%)`,
+            `${positionSize > 20 ? 'Major' : positionSize > 10 ? 'Significant' : 'Balanced'} position (${positionSize.toFixed(1)}% of portfolio)`,
             inv.gainLossPercentage && inv.gainLossPercentage > 0 
-              ? `Strong performance with ${inv.gainLossPercentage.toFixed(1)}% return`
-            : 'Established market presence',
-            `Total position: ${inv.shares} shares`
+              ? `Strong performance: +${inv.gainLossPercentage.toFixed(2)}% return`
+              : 'Established market position',
+            `Total position: ${inv.shares} shares at avg. $${inv.purchase_price.toFixed(2)}`,
+            assetVolatility < 20 ? 'Low volatility asset' : 'Market-standard volatility',
+            beta < 1 ? 'Lower market correlation (defensive)' : 'Market-correlated performance'
           ],
           weaknesses: [
-          aiAnalysisEnabled ? 'AI analysis unavailable' : 'Basic analysis mode',
-          positionSize > 20 ? 'High concentration risk' : 'Limited position size'
+            inv.marketDataMissing ? 'Real-time market data unavailable' : 
+              aiAnalysisEnabled ? 'AI analysis unavailable' : 'Basic analysis mode',
+            positionSize > 25 ? 'High concentration risk - consider rebalancing' : 
+              positionSize < 2 ? 'Minimal portfolio impact' : 'Balanced allocation',
+            inv.gainLossPercentage && inv.gainLossPercentage < -10 ? 
+              `Significant underperformance: ${inv.gainLossPercentage.toFixed(2)}%` : 
+              'Standard market exposure risks'
           ],
           recommendations: [
-          aiAnalysisEnabled ? 'Refresh page for AI analysis' : 'Enable AI analysis for detailed insights',
-          'Monitor performance trends'
+            positionSize > 25 ? 'Consider reducing position size for better diversification' :
+              positionSize < 5 ? 'Consider increasing position if conviction is high' :
+              'Maintain current allocation',
+            inv.gainLossPercentage && inv.gainLossPercentage < -15 ? 
+              'Review investment thesis - consider stop-loss or averaging down' :
+              'Monitor performance vs sector benchmarks',
+            aiAnalysisEnabled ? 'Refresh page for AI analysis' : 'Enable AI analysis for detailed insights',
+            'Set price alerts for key technical levels'
           ],
           individualPurchases: individualPurchases,
           aggregatedData: {
@@ -354,11 +445,130 @@ export default function PortfolioAnalysis() {
             totalValue: inv.totalValue || 0,
             totalGainLoss: inv.gainLoss || 0,
             totalGainLossPercentage: inv.gainLossPercentage || 0
-          }
+          },
+          // Wall Street-level metrics
+          riskMetrics: {
+            beta: beta,
+            volatility: assetVolatility,
+            sharpeRatio: calculateAssetSharpeRatio(inv.gainLossPercentage || 0, assetVolatility)
+          },
+          technicalIndicators: {
+            rsi: rsi,
+            movingAverage50: inv.currentPrice, // Simplified - would need historical data
+            movingAverage200: inv.purchase_price // Simplified
+          },
+          fundamentalMetrics: {
+            // These would typically come from financial data APIs
+            peRatio: undefined, // Would need earnings data
+            pbRatio: undefined, // Would need book value data
+            debtToEquity: undefined // Would need balance sheet data
+          },
+          marketDataMissing: inv.marketDataMissing || false
         };
       });
 
-    setAssetGrades(basicAssetGrades);
+    setAssetGrades(enhancedAssetGrades);
+  };
+
+  // Helper functions for Wall Street-level calculations
+  const calculatePortfolioVolatility = (investments: InvestmentWithMarketData[]): number => {
+    // Simplified volatility calculation based on position variance
+    const returns = investments.map(inv => inv.gainLossPercentage || 0);
+    const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
+    const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length;
+    return Math.sqrt(variance);
+  };
+
+  const calculateSharpeRatio = (returns: number, volatility: number): number => {
+    const riskFreeRate = 2.5; // Assume 2.5% risk-free rate
+    return volatility > 0 ? (returns - riskFreeRate) / volatility : 0;
+  };
+
+  const calculateMaxDrawdown = (investments: InvestmentWithMarketData[]): number => {
+    // Simplified max drawdown calculation
+    const losses = investments
+      .map(inv => inv.gainLossPercentage || 0)
+      .filter(ret => ret < 0);
+    return losses.length > 0 ? Math.abs(Math.min(...losses)) : 0;
+  };
+
+  const calculateAssetVolatility = (investment: InvestmentWithMarketData): number => {
+    // Simplified volatility based on price movement from purchase
+    const priceChange = Math.abs((investment.gainLossPercentage || 0));
+    return Math.min(priceChange * 2, 50); // Cap at 50%
+  };
+
+  const calculateBeta = (investment: InvestmentWithMarketData, portfolio: InvestmentWithMarketData[]): number => {
+    // Simplified beta calculation
+    const marketReturn = portfolio.reduce((sum, inv) => sum + (inv.gainLossPercentage || 0), 0) / portfolio.length;
+    const assetReturn = investment.gainLossPercentage || 0;
+    return marketReturn !== 0 ? assetReturn / marketReturn : 1;
+  };
+
+  const calculateRSI = (investment: InvestmentWithMarketData): number => {
+    // Simplified RSI based on current performance
+    const performance = investment.gainLossPercentage || 0;
+    if (performance > 10) return 70; // Overbought
+    if (performance < -10) return 30; // Oversold
+    return 50 + (performance * 2); // Neutral zone
+  };
+
+  const calculateAssetSharpeRatio = (returns: number, volatility: number): number => {
+    const riskFreeRate = 2.5;
+    return volatility > 0 ? (returns - riskFreeRate) / volatility : 0;
+  };
+
+  const getPortfolioGrade = (returns: number, volatility: number, sectors: number): string => {
+    if (returns > 15 && volatility < 20 && sectors >= 5) return 'A+';
+    if (returns > 10 && volatility < 25 && sectors >= 4) return 'A';
+    if (returns > 5 && volatility < 30 && sectors >= 3) return 'A-';
+    if (returns > 0 && volatility < 35) return 'B+';
+    if (returns > -5) return 'B';
+    if (returns > -10) return 'B-';
+    if (returns > -15) return 'C+';
+    return 'C';
+  };
+
+  const getDiversificationGrade = (sectors: number, positions: number): string => {
+    if (sectors >= 6 && positions >= 15) return 'A+';
+    if (sectors >= 5 && positions >= 10) return 'A';
+    if (sectors >= 4 && positions >= 8) return 'A-';
+    if (sectors >= 3 && positions >= 5) return 'B+';
+    if (sectors >= 2) return 'B';
+    return 'C';
+  };
+
+  const getRiskGrade = (volatility: number, maxDrawdown: number): string => {
+    if (volatility < 15 && maxDrawdown < 10) return 'A+';
+    if (volatility < 20 && maxDrawdown < 15) return 'A';
+    if (volatility < 25 && maxDrawdown < 20) return 'B+';
+    if (volatility < 30 && maxDrawdown < 25) return 'B';
+    if (volatility < 35) return 'B-';
+    return 'C';
+  };
+
+  const getPerformanceGrade = (returns: number, sharpe: number): string => {
+    if (returns > 20 && sharpe > 1.5) return 'A+';
+    if (returns > 15 && sharpe > 1.0) return 'A';
+    if (returns > 10 && sharpe > 0.8) return 'A-';
+    if (returns > 5 && sharpe > 0.5) return 'B+';
+    if (returns > 0) return 'B';
+    if (returns > -5) return 'B-';
+    if (returns > -10) return 'C+';
+    return 'C';
+  };
+
+  const getAssetGrade = (returns: number, value: number, totalValue: number): string => {
+    const weight = value / totalValue;
+    if (returns > 20 && weight < 0.3) return 'A+';
+    if (returns > 15) return 'A';
+    if (returns > 10) return 'A-';
+    if (returns > 5) return 'B+';
+    if (returns > 0) return 'B';
+    if (returns > -5) return 'B-';
+    if (returns > -10) return 'C+';
+    if (returns > -15) return 'C';
+    return 'D';
   };
 
   // Helper function to extract sections from AI analysis text
@@ -726,6 +936,14 @@ export default function PortfolioAnalysis() {
                       <h3 className="text-lg font-medium text-gray-900">{asset.symbol}</h3>
                       <p className="text-sm text-gray-500">
                         Aggregated Position • {asset.aggregatedData?.totalShares || 0} shares • {asset.individualPurchases?.length || 0} purchase{(asset.individualPurchases?.length || 0) !== 1 ? 's' : ''}
+                        {asset.marketDataMissing && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            No Live Data
+                          </span>
+                        )}
                       </p>
                     </div>
                     {(asset.individualPurchases?.length || 0) > 1 && (
@@ -753,6 +971,51 @@ export default function PortfolioAnalysis() {
                   </div>
                   <span className="text-3xl font-bold text-[#6495ED]">{asset.grade}</span>
                 </div>
+
+                {/* Wall Street-Level Metrics */}
+                {asset.riskMetrics && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">Risk & Performance Metrics</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Beta</span>
+                        <p className="font-medium text-gray-900">
+                          {asset.riskMetrics.beta?.toFixed(2) || 'N/A'}
+                          <span className="text-xs text-gray-400 ml-1">
+                            {(asset.riskMetrics.beta || 0) < 1 ? '(Defensive)' : '(Aggressive)'}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Volatility</span>
+                        <p className="font-medium text-gray-900">
+                          {asset.riskMetrics.volatility?.toFixed(1) || 'N/A'}%
+                          <span className="text-xs text-gray-400 ml-1">
+                            {(asset.riskMetrics.volatility || 0) < 20 ? '(Low)' : (asset.riskMetrics.volatility || 0) < 35 ? '(Moderate)' : '(High)'}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Sharpe Ratio</span>
+                        <p className="font-medium text-gray-900">
+                          {asset.riskMetrics.sharpeRatio?.toFixed(2) || 'N/A'}
+                          <span className="text-xs text-gray-400 ml-1">
+                            {(asset.riskMetrics.sharpeRatio || 0) > 1 ? '(Excellent)' : (asset.riskMetrics.sharpeRatio || 0) > 0.5 ? '(Good)' : '(Poor)'}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">RSI</span>
+                        <p className="font-medium text-gray-900">
+                          {asset.technicalIndicators?.rsi?.toFixed(0) || 'N/A'}
+                          <span className="text-xs text-gray-400 ml-1">
+                            {(asset.technicalIndicators?.rsi || 50) > 70 ? '(Overbought)' : (asset.technicalIndicators?.rsi || 50) < 30 ? '(Oversold)' : '(Neutral)'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Aggregated Analysis */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">

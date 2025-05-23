@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-// Constants for market data
+// Constants for market data - these are just for display names
 const INDICES = {
   "SPY": "S&P 500 (ETF)",
   "DIA": "Dow Jones (ETF)",
@@ -36,6 +36,7 @@ async function getLatestHistoricalData(symbol: string) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase credentials not configured');
       throw new Error('Supabase credentials not configured');
     }
 
@@ -49,26 +50,53 @@ async function getLatestHistoricalData(symbol: string) {
       .order('timestamp', { ascending: false })
       .limit(1);
 
-    if (error) throw error;
-    if (!data || data.length === 0) return null;
+    if (error) {
+      console.error(`Supabase error for ${symbol}:`, error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`No historical data found for symbol: ${symbol}`);
+      // Return a fallback response indicating no data
+      return {
+        symbol: symbol.toUpperCase(),
+        price: null,
+        change: 0,
+        is_market_hours: false,
+        timestamp: new Date().toISOString(),
+        type: 'stock',
+        error: 'No historical data available'
+      };
+    }
 
     // Determine if it's a crypto symbol or index
     const isCrypto = Object.keys(CRYPTO).includes(symbol.toLowerCase());
     const isIndex = Object.keys(INDICES).includes(symbol.toUpperCase());
+    
+    console.log(`Found data for ${symbol}:`, data[0]);
     
     return {
       symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] : 
              isIndex ? INDICES[symbol.toUpperCase()] : 
              symbol.toUpperCase(),
       price: data[0].price,
-      change: data[0].change_percentage,
+      change: data[0].change_percentage || 0,
       is_market_hours: data[0].is_market_hours,
       timestamp: data[0].timestamp,
       type: isCrypto ? 'crypto' : isIndex ? 'index' : 'stock'
     };
   } catch (error) {
-    console.error('Error fetching historical data:', error);
-    return null;
+    console.error(`Error fetching historical data for ${symbol}:`, error);
+    // Return a fallback response instead of null
+    return {
+      symbol: symbol.toUpperCase(),
+      price: null,
+      change: 0,
+      is_market_hours: false,
+      timestamp: new Date().toISOString(),
+      type: 'stock',
+      error: error.message || 'Failed to fetch data'
+    };
   }
 }
 
