@@ -26,7 +26,7 @@ interface PortfolioAnalysisRequest {
 }
 
 async function generatePortfolioAnalysis(data: PortfolioAnalysisRequest) {
-  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3001';
+  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3002';
   const analysisApiKey = process.env.ANALYSIS_SERVICE_API_KEY;
 
   if (!analysisApiKey) {
@@ -102,7 +102,7 @@ Format your response as JSON with this structure:
 }
 
 async function generateIndividualAnalysis(investment: any) {
-  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3001';
+  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3002';
   const analysisApiKey = process.env.ANALYSIS_SERVICE_API_KEY;
 
   if (!analysisApiKey) {

@@ -22,7 +22,7 @@ async function generateAnalysis(params: {
   gain_loss_percentage: number;
 }) {
   // Use dedicated analysis service URL
-  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3001';
+  const analysisServiceUrl = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3002';
   const analysisApiKey = process.env.ANALYSIS_SERVICE_API_KEY;
 
   console.log(`Calling analysis service at: ${analysisServiceUrl}/api/analysis`);
