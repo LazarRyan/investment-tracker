@@ -87,39 +87,40 @@ export default function Dashboard() {
   useEffect(() => {
     // Only fetch data if user is authenticated or in guest mode
     if (!loading && (user || isGuest)) {
-      const fetchData = async () => {
-        setMarketDataLoading(true);
-        try {
-          // Fetch market data
-          const marketResponse = await internalFetch('/api/market-data');
-          if (marketResponse.data) {
-            setMarketData(marketResponse.data);
-            localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
-          }
-          
-          // Fetch portfolio summary
-          const summaryResponse = await internalFetch('/api/portfolio/summary');
-          if (summaryResponse.data) {
-            setPortfolioSummary(summaryResponse.data);
-          }
-          
-          setMarketDataLoading(false);
-          setMarketDataError(null);
-        } catch (error) {
-          console.error('Error fetching dashboard data:', error);
-          setMarketDataError('Failed to load market data');
-          setMarketDataLoading(false);
-        }
-      };
-
-      fetchData();
+      fetchDashboardData();
       
       // Refresh data every 5 minutes
-      const intervalId = setInterval(fetchData, 300000);
+      const intervalId = setInterval(fetchDashboardData, 300000);
       
       return () => clearInterval(intervalId);
     }
   }, [user, isGuest, loading]);
+
+  // Extract the data fetching logic into a separate function
+  const fetchDashboardData = async () => {
+    setMarketDataLoading(true);
+    try {
+      // Fetch market data
+      const marketResponse = await internalFetch('/api/market-data');
+      if (marketResponse.data) {
+        setMarketData(marketResponse.data);
+        localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
+      }
+      
+      // Fetch portfolio summary
+      const summaryResponse = await internalFetch('/api/portfolio/summary');
+      if (summaryResponse.data) {
+        setPortfolioSummary(summaryResponse.data);
+      }
+      
+      setMarketDataLoading(false);
+      setMarketDataError(null);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setMarketDataError('Failed to load market data');
+      setMarketDataLoading(false);
+    }
+  };
 
   // Show loading state while checking authentication
   if (loading) {
@@ -467,13 +468,15 @@ export default function Dashboard() {
             <AddInvestmentForm
               onSuccess={() => {
                 setShowAddForm(false);
-                // The portfolio will automatically refresh due to its own useEffect
+                // Refresh both the portfolio summary and investment list
+                fetchDashboardData();
               }}
               onCancel={() => setShowAddForm(false)}
             />
           ) : (
             <InvestmentPortfolio 
               onAddClick={() => setShowAddForm(true)}
+              onDataChange={fetchDashboardData}
             />
           )}
         </div>

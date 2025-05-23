@@ -22,9 +22,10 @@ interface InvestmentWithMarketData extends Investment {
 
 interface InvestmentPortfolioProps {
   onAddClick: () => void;
+  onDataChange?: () => void;
 }
 
-export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioProps) {
+export default function InvestmentPortfolio({ onAddClick, onDataChange }: InvestmentPortfolioProps) {
   const [investments, setInvestments] = useState<InvestmentWithMarketData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +158,8 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
   const handleSellSuccess = () => {
     setSellInvestment(null);
     loadInvestments();
+    // Notify parent component that data has changed
+    onDataChange?.();
   };
 
   const handleSellCancel = () => {
@@ -210,6 +213,8 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
       }
 
       await loadInvestments();
+      // Notify parent component that data has changed
+      onDataChange?.();
     } catch (err) {
       console.error('Error selling investment:', err);
       setError('Failed to sell investment');
