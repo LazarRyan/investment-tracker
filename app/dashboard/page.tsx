@@ -71,7 +71,7 @@ export default function Dashboard() {
         Cookies.remove('guest_mode');
         setUser(null);
         setIsGuest(false);
-        router.push('/auth/signin');
+        router.push('/');
       } else if (session?.user) {
         setUser(session.user);
         setIsGuest(false);

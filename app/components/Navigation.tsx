@@ -30,7 +30,7 @@ export default function Navigation() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/auth/signin');
+    router.push('/');
   };
 
   const handleSignIn = () => {
