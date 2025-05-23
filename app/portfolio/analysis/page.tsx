@@ -31,6 +31,28 @@ interface AssetGrade {
   strengths: string[];
   weaknesses: string[];
   recommendations: string[];
+  individualPurchases?: IndividualPurchaseGrade[];
+  aggregatedData?: {
+    totalShares: number;
+    avgPurchasePrice: number;
+    totalValue: number;
+    totalGainLoss: number;
+    totalGainLossPercentage: number;
+  };
+}
+
+interface IndividualPurchaseGrade {
+  id: string;
+  purchaseDate: string;
+  shares: number;
+  purchasePrice: number;
+  currentValue: number;
+  gainLoss: number;
+  gainLossPercentage: number;
+  grade: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
 }
 
 export default function PortfolioAnalysis() {
@@ -42,6 +64,7 @@ export default function PortfolioAnalysis() {
   const [assetGrades, setAssetGrades] = useState<AssetGrade[]>([]);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [aiAnalysisEnabled, setAiAnalysisEnabled] = useState(true);
+  const [expandedAssets, setExpandedAssets] = useState<Set<string>>(new Set());
 
   const fetchInvestments = async () => {
     try {
@@ -174,6 +197,10 @@ export default function PortfolioAnalysis() {
       const aiAssetGrades = analysisResult.individual_analyses.map((analysis: any) => {
         const investment = aggregatedInvestments.find(inv => inv.symbol === analysis.symbol);
         
+        // Get all purchases for this symbol to generate individual grades
+        const symbolPurchases = investments.filter(inv => inv.symbol === analysis.symbol);
+        const individualPurchases = generateIndividualPurchaseGrades(analysis.symbol, symbolPurchases);
+        
         // Parse the AI analysis to extract structured data
         const analysisText = analysis.analysis || analysis.raw_analysis || '';
         
@@ -203,7 +230,15 @@ export default function PortfolioAnalysis() {
             'Monitor performance regularly',
             'Consider portfolio balance'
           ],
-          ai_analysis: analysisText // Store full AI analysis for reference
+          ai_analysis: analysisText, // Store full AI analysis for reference
+          individualPurchases: individualPurchases,
+          aggregatedData: {
+            totalShares: investment?.shares || 0,
+            avgPurchasePrice: investment?.purchase_price || 0,
+            totalValue: investment?.totalValue || 0,
+            totalGainLoss: investment?.gainLoss || 0,
+            totalGainLossPercentage: investment?.gainLossPercentage || 0
+          }
         };
       });
 
@@ -290,6 +325,10 @@ export default function PortfolioAnalysis() {
         const performanceGrade = (inv.gainLossPercentage || 0) > 0 ? 'A' : 'B';
         const positionSize = ((inv.totalValue || 0) / totalValue) * 100;
         
+        // Get all purchases for this symbol to generate individual grades
+        const symbolPurchases = investments.filter(investment => investment.symbol === inv.symbol);
+        const individualPurchases = generateIndividualPurchaseGrades(inv.symbol, symbolPurchases);
+        
         return {
           symbol: inv.symbol,
           grade: performanceGrade,
@@ -307,7 +346,15 @@ export default function PortfolioAnalysis() {
           recommendations: [
           aiAnalysisEnabled ? 'Refresh page for AI analysis' : 'Enable AI analysis for detailed insights',
           'Monitor performance trends'
-          ]
+          ],
+          individualPurchases: individualPurchases,
+          aggregatedData: {
+            totalShares: inv.shares,
+            avgPurchasePrice: inv.purchase_price,
+            totalValue: inv.totalValue || 0,
+            totalGainLoss: inv.gainLoss || 0,
+            totalGainLossPercentage: inv.gainLossPercentage || 0
+          }
         };
       });
 
@@ -367,6 +414,75 @@ export default function PortfolioAnalysis() {
       console.error('Error generating PDF:', error);
       setGeneratingPdf(false);
     }
+  };
+
+  // Helper function to generate individual purchase grades
+  const generateIndividualPurchaseGrades = (symbol: string, purchases: InvestmentWithMarketData[]): IndividualPurchaseGrade[] => {
+    return purchases.map(purchase => {
+      const performanceGrade = (purchase.gainLossPercentage || 0) > 10 ? 'A' : 
+                              (purchase.gainLossPercentage || 0) > 0 ? 'B' : 
+                              (purchase.gainLossPercentage || 0) > -10 ? 'C' : 'D';
+      
+      const purchaseValue = purchase.purchase_price * purchase.shares;
+      const currentValue = (purchase.currentPrice || purchase.purchase_price) * purchase.shares;
+      
+      return {
+        id: purchase.id,
+        purchaseDate: new Date(purchase.purchase_date).toLocaleDateString(),
+        shares: purchase.shares,
+        purchasePrice: purchase.purchase_price,
+        currentValue: currentValue,
+        gainLoss: purchase.gainLoss || 0,
+        gainLossPercentage: purchase.gainLossPercentage || 0,
+        grade: performanceGrade,
+        strengths: [
+          `Purchased ${purchase.shares} shares at $${purchase.purchase_price.toFixed(2)}`,
+          purchase.gainLossPercentage && purchase.gainLossPercentage > 0 
+            ? `Positive return of ${purchase.gainLossPercentage.toFixed(1)}%`
+            : 'Position established',
+          `Purchase date: ${new Date(purchase.purchase_date).toLocaleDateString()}`
+        ],
+        weaknesses: [
+          purchase.gainLossPercentage && purchase.gainLossPercentage < 0 
+            ? `Currently down ${Math.abs(purchase.gainLossPercentage).toFixed(1)}%`
+            : 'Market volatility risk',
+          'Individual purchase tracking'
+        ],
+        recommendations: [
+          purchase.gainLossPercentage && purchase.gainLossPercentage < -15 
+            ? 'Consider averaging down or exit strategy'
+            : 'Monitor performance vs other purchases',
+          'Track against overall position performance'
+        ]
+      };
+    });
+  };
+
+  // Helper function to group investments by symbol
+  const groupInvestmentsBySymbol = (investments: InvestmentWithMarketData[]): Map<string, InvestmentWithMarketData[]> => {
+    const grouped = new Map<string, InvestmentWithMarketData[]>();
+    
+    investments.forEach(investment => {
+      const symbol = investment.symbol;
+      if (!grouped.has(symbol)) {
+        grouped.set(symbol, []);
+      }
+      grouped.get(symbol)!.push(investment);
+    });
+    
+    return grouped;
+  };
+
+  const toggleAssetExpansion = (symbol: string) => {
+    setExpandedAssets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(symbol)) {
+        newSet.delete(symbol);
+      } else {
+        newSet.add(symbol);
+      }
+      return newSet;
+    });
   };
 
   useEffect(() => {
@@ -605,14 +721,41 @@ export default function PortfolioAnalysis() {
             {assetGrades.map((asset, index) => (
               <div key={index} className="border-t border-gray-200 pt-6 first:border-0 first:pt-0">
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{asset.symbol}</h3>
-                    <p className="text-sm text-gray-500">Individual Asset Grade</p>
+                  <div className="flex items-center space-x-3">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{asset.symbol}</h3>
+                      <p className="text-sm text-gray-500">
+                        Aggregated Position • {asset.aggregatedData?.totalShares || 0} shares • {asset.individualPurchases?.length || 0} purchase{(asset.individualPurchases?.length || 0) !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    {(asset.individualPurchases?.length || 0) > 1 && (
+                      <button
+                        onClick={() => toggleAssetExpansion(asset.symbol)}
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                      >
+                        {expandedAssets.has(asset.symbol) ? (
+                          <>
+                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                            Hide Purchases
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            View Purchases
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                   <span className="text-3xl font-bold text-[#6495ED]">{asset.grade}</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Aggregated Analysis */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                   <div>
                     <h4 className="text-sm font-medium text-green-600 mb-2">Strengths</h4>
                     <ul className="space-y-2">
@@ -655,6 +798,76 @@ export default function PortfolioAnalysis() {
                     </ul>
                   </div>
                 </div>
+
+                {/* Individual Purchases Dropdown */}
+                {expandedAssets.has(asset.symbol) && asset.individualPurchases && asset.individualPurchases.length > 0 && (
+                  <div className="mt-6 border-t border-gray-100 pt-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-4">Individual Purchase Analysis</h4>
+                    <div className="space-y-4">
+                      {asset.individualPurchases.map((purchase, purchaseIdx) => (
+                        <div key={purchase.id} className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h5 className="text-sm font-medium text-gray-900">
+                                Purchase #{purchaseIdx + 1} • {purchase.purchaseDate}
+                              </h5>
+                              <p className="text-xs text-gray-500">
+                                {purchase.shares} shares @ ${purchase.purchasePrice.toFixed(2)} • 
+                                Current: ${(purchase.currentValue / purchase.shares).toFixed(2)} • 
+                                {purchase.gainLossPercentage >= 0 ? '+' : ''}{purchase.gainLossPercentage.toFixed(1)}%
+                              </p>
+                            </div>
+                            <span className={`text-lg font-bold ${
+                              purchase.grade === 'A' ? 'text-green-600' :
+                              purchase.grade === 'B' ? 'text-blue-600' :
+                              purchase.grade === 'C' ? 'text-yellow-600' : 'text-red-600'
+                            }`}>
+                              {purchase.grade}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div>
+                              <h6 className="font-medium text-green-600 mb-1">Strengths</h6>
+                              <ul className="space-y-1">
+                                {purchase.strengths.map((strength, idx) => (
+                                  <li key={idx} className="flex items-start">
+                                    <span className="text-green-500 mr-1">•</span>
+                                    <span className="text-gray-600">{strength}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div>
+                              <h6 className="font-medium text-red-600 mb-1">Concerns</h6>
+                              <ul className="space-y-1">
+                                {purchase.weaknesses.map((weakness, idx) => (
+                                  <li key={idx} className="flex items-start">
+                                    <span className="text-red-500 mr-1">•</span>
+                                    <span className="text-gray-600">{weakness}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div>
+                              <h6 className="font-medium text-blue-600 mb-1">Recommendations</h6>
+                              <ul className="space-y-1">
+                                {purchase.recommendations.map((rec, idx) => (
+                                  <li key={idx} className="flex items-start">
+                                    <span className="text-blue-500 mr-1">•</span>
+                                    <span className="text-gray-600">{rec}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
