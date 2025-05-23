@@ -68,7 +68,7 @@ export default function SignIn() {
         
         // Email is verified, redirect to the dashboard
         // Get the redirect URL from search params or default to dashboard
-        const redirectTo = searchParams.get('redirect') || '/dashboard';
+        const redirectTo = searchParams?.get('redirect') || '/dashboard';
         router.push(redirectTo);
       }
     } catch (err) {

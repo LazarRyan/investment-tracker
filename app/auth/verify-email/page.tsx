@@ -20,6 +20,8 @@ export default function VerifyEmail() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (!searchParams) return;
+    
     // Determine the type of verification from URL parameters
     const type = searchParams.get('type') as VerificationType;
     if (type) {

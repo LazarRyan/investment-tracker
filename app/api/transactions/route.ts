@@ -118,7 +118,6 @@ export async function POST(request: Request) {
         .from('transactions')
         .insert([{
           ...transaction,
-          user_id: userId, // Add user_id to ensure proper ownership
           // Add created_at timestamp
           created_at: new Date().toISOString()
         }])
@@ -162,8 +161,7 @@ export async function DELETE(request: Request) {
       const { error } = await supabase
         .from('transactions')
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId); // Add user check for security
+        .eq('id', id);
 
       if (error) {
         throw error;
