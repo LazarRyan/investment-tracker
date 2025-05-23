@@ -81,30 +81,7 @@ export async function POST(request: Request) {
         portfolioId = existingPortfolio.id;
       }
 
-      // Check for duplicate investments (same symbol, shares, and purchase price)
-      const { data: existingInvestments, error: checkError } = await supabase
-        .from('investments')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('symbol', investment.symbol)
-        .eq('shares', investment.shares)
-        .eq('purchase_price', investment.purchase_price);
-      
-      if (checkError) {
-        console.error('Error checking for duplicate investments:', checkError);
-      } else if (existingInvestments && existingInvestments.length > 0) {
-        // Duplicate found - return existing investment
-        console.log(`Duplicate investment found for ${investment.symbol}, not creating a new one`);
-        return NextResponse.json(
-          { 
-            warning: 'This exact investment already exists in your portfolio',
-            investment: existingInvestments[0]
-          },
-          { status: 200 }
-        );
-      }
-
-      // Create the investment
+      // Create the investment (removed duplicate check to allow multiple purchases of same stock)
       const { data: newInvestment, error: investmentError } = await supabase
         .from('investments')
         .insert([{
