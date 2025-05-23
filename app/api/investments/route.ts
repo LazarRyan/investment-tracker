@@ -30,6 +30,7 @@ export async function GET() {
         .from('investments')
         .select('*')
         .eq('user_id', userId)
+        .gt('shares', 0)
         .order('created_at', { ascending: false });
 
       if (investmentsError) {

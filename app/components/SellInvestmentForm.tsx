@@ -93,14 +93,20 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
         throw new Error(errorData.error || 'Failed to create sell transaction');
       }
 
-      // If selling all shares (with floating-point tolerance), mark investment as sold
+      // If selling all shares (with floating-point tolerance), update shares to 0 instead of deleting
       const difference = Math.abs(sharesToSell - investment.shares);
       console.log(`Sell comparison: ${sharesToSell} vs ${investment.shares}, difference: ${difference}, tolerance: ${tolerance}`);
       
       if (difference < tolerance) {
-        console.log('Deleting investment - selling all shares');
+        console.log('Updating investment to 0 shares - selling all shares');
         await fetch(`/api/investments?id=${investment.id}`, {
-          method: 'DELETE'
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shares: 0
+          }),
         });
       } 
       // If selling part of the shares, update remaining shares

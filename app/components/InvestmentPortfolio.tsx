@@ -192,15 +192,21 @@ export default function InvestmentPortfolio({ onAddClick }: InvestmentPortfolioP
       // Wait for the transaction to be created
       await response.json();
 
-      // Delete the investment
-      const deleteResponse = await fetch(`/api/investments?id=${investment.id}`, {
-        method: 'DELETE',
+      // Update investment to 0 shares instead of deleting
+      const updateResponse = await fetch(`/api/investments?id=${investment.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shares: 0
+        }),
       });
 
-      if (!deleteResponse.ok) {
-        const error = await deleteResponse.json();
-        console.error('Delete error:', error);
-        throw new Error('Failed to delete investment');
+      if (!updateResponse.ok) {
+        const error = await updateResponse.json();
+        console.error('Update error:', error);
+        throw new Error('Failed to update investment');
       }
 
       await loadInvestments();

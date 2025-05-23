@@ -19,7 +19,8 @@ export async function GET(req: Request) {
       const { data: investments, error: investmentsError } = await supabase
         .from('investments')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .gt('shares', 0); // Only include investments with shares > 0
 
       if (investmentsError) {
         console.error('Error fetching investments:', investmentsError);
