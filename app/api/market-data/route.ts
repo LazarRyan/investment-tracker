@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Constants for market data - these are just for display names
 const INDICES = {
@@ -158,21 +159,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     
+    // Define cache-control headers to prevent caching
+    const headers = {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    };
+    
     // If a specific symbol is requested
     if (symbol) {
       console.log(`Fetching data for symbol: ${symbol}`);
       const historicalData = await getLatestHistoricalData(symbol);
       if (historicalData) {
         console.log(`Found historical data for ${symbol}:`, historicalData);
-        return new Response(JSON.stringify(historicalData), {
-          headers: { 'Content-Type': 'application/json' }
-        });
+        return new Response(JSON.stringify(historicalData), { headers });
       }
 
       console.log(`No data available for ${symbol}`);
       return new Response(JSON.stringify({ error: 'No data available' }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
     }
 
@@ -184,22 +192,26 @@ export async function GET(request: Request) {
     
     if (historicalData.length > 0) {
       console.log(`Found historical data for ${historicalData.length} symbols`);
-      return new Response(JSON.stringify(historicalData), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(JSON.stringify(historicalData), { headers });
     }
 
     // If no data available at all
     console.log('No market data available');
     return new Response(JSON.stringify({ error: 'No market data available' }), {
       status: 404,
-      headers: { 'Content-Type': 'application/json' }
+      headers
     });
   } catch (error) {
     console.error('Error in GET handler:', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
     });
   }
 } 

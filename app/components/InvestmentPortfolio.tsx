@@ -53,7 +53,9 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
       console.log(`Fetching market data for ${symbol}...`);
-      const response = await internalFetch(`/api/market-data?symbol=${symbol}`);
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await internalFetch(`/api/market-data?symbol=${symbol}&_t=${timestamp}`);
       
       if (!response.ok) {
         if (response.status === 404) {

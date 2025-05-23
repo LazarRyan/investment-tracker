@@ -134,7 +134,9 @@ export default function PortfolioAnalysis() {
 
   const fetchMarketData = async (symbol: string): Promise<MarketData | null> => {
     try {
-      const response = await fetch(`/api/market-data?symbol=${symbol}`);
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/market-data?symbol=${symbol}&_t=${timestamp}`);
       if (!response.ok) {
         throw new Error('Failed to fetch market data');
       }

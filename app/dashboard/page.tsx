@@ -116,8 +116,9 @@ export default function Dashboard() {
     setRefreshing(true);
     setMarketDataLoading(true);
     try {
-      // Fetch market data
-      const marketResponse = await internalFetch('/api/market-data');
+      // Fetch market data with cache-busting timestamp
+      const timestamp = new Date().getTime();
+      const marketResponse = await internalFetch(`/api/market-data?_t=${timestamp}`);
       if (marketResponse.data) {
         setMarketData(marketResponse.data);
         localStorage.setItem('marketDataLastUpdated', new Date().toISOString());

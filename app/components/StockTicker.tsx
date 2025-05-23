@@ -24,7 +24,10 @@ export default function StockTicker() {
         setIsLoading(true);
         setError(null);
         console.log('StockTicker: Fetching market data from the API service...');
-        const response = await internalFetch('/api/market-data');
+        
+        // Add cache-busting timestamp to ensure fresh data
+        const timestamp = new Date().getTime();
+        const response = await internalFetch(`/api/market-data?_t=${timestamp}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch market data: ${response.status}`);
@@ -59,7 +62,7 @@ export default function StockTicker() {
     // Update every 5 minutes since we're using historical data
     const interval = setInterval(fetchMarketData, 300000);
     return () => clearInterval(interval);
-  }, []); // Remove isMarketHours dependency since we're using historical data
+  }, []);
 
   const formatPrice = (data: MarketData) => {
     if (data.type === 'crypto') {
