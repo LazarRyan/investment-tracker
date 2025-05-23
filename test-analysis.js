@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 async function testAnalysisService() {
   try {
-    const response = await fetch('http://localhost:3002/api/analysis', {
+    const response = await fetch('https://investment-analysis-service-production.up.railway.app/api/analysis', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
