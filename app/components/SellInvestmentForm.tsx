@@ -16,7 +16,7 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
   const [formData, setFormData] = useState({
     shares: investment.shares.toString(),
     sell_price: '',
-    sell_date: new Date().toISOString().split('T')[0],
+    sell_date: new Date().toLocaleDateString('en-CA'),
     notes: ''
   });
 
@@ -85,8 +85,9 @@ export default function SellInvestmentForm({ investment, onSuccess, onCancel }: 
         throw new Error(errorData.error || 'Failed to create sell transaction');
       }
 
-      // If selling all shares, mark investment as sold
-      if (sharesToSell === investment.shares) {
+      // If selling all shares (with floating-point tolerance), mark investment as sold
+      const tolerance = 0.0001; // Small tolerance for floating-point comparison
+      if (Math.abs(sharesToSell - investment.shares) < tolerance) {
         await fetch(`/api/investments?id=${investment.id}`, {
           method: 'DELETE'
         });

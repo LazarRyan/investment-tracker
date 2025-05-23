@@ -15,7 +15,7 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
     symbol: '',
     shares: '',
     purchase_price: '',
-    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_date: new Date().toLocaleDateString('en-CA'),
     notes: ''
   });
 
