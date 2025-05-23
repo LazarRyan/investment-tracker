@@ -109,16 +109,19 @@ export default function PortfolioAnalysis() {
     setError(null);
     
     try {
-      // Calculate portfolio metrics
-      const totalValue = investments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
-      const totalInvested = investments.reduce((sum, inv) => sum + (inv.purchase_price * inv.shares), 0);
-      const totalGainLoss = investments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
+      // Aggregate investments by symbol first
+      const aggregatedInvestments = aggregateInvestmentsBySymbol(investments);
+      
+      // Calculate portfolio metrics using aggregated data
+      const totalValue = aggregatedInvestments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
+      const totalInvested = aggregatedInvestments.reduce((sum, inv) => sum + (inv.purchase_price * inv.shares), 0);
+      const totalGainLoss = aggregatedInvestments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
       const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
-      const sectorDiversification = new Set(investments.map(inv => inv.sector)).size;
+      const sectorDiversification = new Set(aggregatedInvestments.map(inv => inv.sector)).size;
 
-      // Prepare data for AI analysis
+      // Prepare data for AI analysis using aggregated investments
       const analysisData = {
-        investments: investments.map(inv => ({
+        investments: aggregatedInvestments.map(inv => ({
           symbol: inv.symbol,
           shares: inv.shares,
           purchase_price: inv.purchase_price,
@@ -133,12 +136,12 @@ export default function PortfolioAnalysis() {
           total_invested: totalInvested,
           total_gain_loss: totalGainLoss,
           total_gain_loss_percentage: totalGainLossPercentage,
-          positions_count: investments.length,
+          positions_count: aggregatedInvestments.length,
           sectors_count: sectorDiversification
         }
       };
 
-      console.log('Calling AI portfolio analysis with data:', analysisData);
+      console.log('Calling AI portfolio analysis with aggregated data:', analysisData);
 
       // Call the AI analysis service
       const response = await fetch('/api/portfolio-analysis', {
@@ -167,9 +170,9 @@ export default function PortfolioAnalysis() {
         analysis: analysisResult.portfolio_grade.analysis
       });
 
-      // Process individual analyses and create asset grades
+      // Process individual analyses and create asset grades using aggregated data
       const aiAssetGrades = analysisResult.individual_analyses.map((analysis: any) => {
-        const investment = investments.find(inv => inv.symbol === analysis.symbol);
+        const investment = aggregatedInvestments.find(inv => inv.symbol === analysis.symbol);
         
         // Parse the AI analysis to extract structured data
         const analysisText = analysis.analysis || analysis.raw_analysis || '';
@@ -219,27 +222,71 @@ export default function PortfolioAnalysis() {
     }
   };
 
+  // Helper function to aggregate investments by symbol
+  const aggregateInvestmentsBySymbol = (investments: InvestmentWithMarketData[]): InvestmentWithMarketData[] => {
+    const aggregated = new Map<string, InvestmentWithMarketData>();
+    
+    investments.forEach(investment => {
+      const symbol = investment.symbol;
+      
+      if (aggregated.has(symbol)) {
+        const existing = aggregated.get(symbol)!;
+        const totalShares = existing.shares + investment.shares;
+        const totalInvested = (existing.purchase_price * existing.shares) + (investment.purchase_price * investment.shares);
+        const avgPurchasePrice = totalInvested / totalShares;
+        
+        // Use the most recent current price
+        const currentPrice = investment.currentPrice || existing.currentPrice || avgPurchasePrice;
+        const totalValue = currentPrice * totalShares;
+        const gainLoss = totalValue - totalInvested;
+        const gainLossPercentage = totalInvested > 0 ? (gainLoss / totalInvested) * 100 : 0;
+        
+        aggregated.set(symbol, {
+          ...existing,
+          shares: totalShares,
+          purchase_price: avgPurchasePrice,
+          currentPrice: currentPrice,
+          totalValue: totalValue,
+          gainLoss: gainLoss,
+          gainLossPercentage: gainLossPercentage,
+          // Keep the most recent purchase date and other metadata
+          purchase_date: investment.purchase_date > existing.purchase_date ? investment.purchase_date : existing.purchase_date,
+          updated_at: investment.updated_at > existing.updated_at ? investment.updated_at : existing.updated_at,
+          sector: investment.sector || existing.sector,
+          name: investment.name || existing.name
+        });
+      } else {
+        aggregated.set(symbol, { ...investment });
+      }
+    });
+    
+    return Array.from(aggregated.values());
+  };
+
   // Separate function for basic analysis fallback
   const generateBasicAnalysis = (investments: InvestmentWithMarketData[]) => {
-    const totalValue = investments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
-    const totalGainLoss = investments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
-      const sectorDiversification = new Set(investments.map(inv => inv.sector)).size;
+    // Aggregate investments by symbol first
+    const aggregatedInvestments = aggregateInvestmentsBySymbol(investments);
+    
+    const totalValue = aggregatedInvestments.reduce((sum, inv) => sum + (inv.totalValue || 0), 0);
+    const totalGainLoss = aggregatedInvestments.reduce((sum, inv) => sum + (inv.gainLoss || 0), 0);
+    const sectorDiversification = new Set(aggregatedInvestments.map(inv => inv.sector)).size;
       
-      setPortfolioGrade({
-        overall: totalGainLoss > 0 ? 'A-' : 'B+',
-        diversification: sectorDiversification > 3 ? 'A' : 'B',
-        risk: 'B+',
-        performance: totalGainLoss > 0 ? 'A' : 'B-',
-        analysis: [
-          `Portfolio consists of ${investments.length} stocks across ${sectorDiversification} sectors`,
-          `Overall performance shows ${totalGainLoss > 0 ? 'positive' : 'negative'} returns`,
+    setPortfolioGrade({
+      overall: totalGainLoss > 0 ? 'A-' : 'B+',
+      diversification: sectorDiversification > 3 ? 'A' : 'B',
+      risk: 'B+',
+      performance: totalGainLoss > 0 ? 'A' : 'B-',
+      analysis: [
+        `Portfolio consists of ${aggregatedInvestments.length} unique stocks across ${sectorDiversification} sectors`,
+        `Overall performance shows ${totalGainLoss > 0 ? 'positive' : 'negative'} returns`,
         aiAnalysisEnabled ? 'AI analysis temporarily unavailable - showing basic metrics' : 'Using basic analysis mode',
         aiAnalysisEnabled ? 'Consider refreshing for detailed AI insights' : 'Enable AI analysis for detailed insights'
       ]
     });
 
-    // Basic fallback for individual assets
-    const basicAssetGrades = investments.map(inv => {
+    // Basic fallback for individual assets using aggregated data
+    const basicAssetGrades = aggregatedInvestments.map(inv => {
         const performanceGrade = (inv.gainLossPercentage || 0) > 0 ? 'A' : 'B';
         const positionSize = ((inv.totalValue || 0) / totalValue) * 100;
         
@@ -250,7 +297,8 @@ export default function PortfolioAnalysis() {
             `${positionSize > 20 ? 'Major' : 'Balanced'} position in portfolio (${positionSize.toFixed(1)}%)`,
             inv.gainLossPercentage && inv.gainLossPercentage > 0 
               ? `Strong performance with ${inv.gainLossPercentage.toFixed(1)}% return`
-            : 'Established market presence'
+            : 'Established market presence',
+            `Total position: ${inv.shares} shares`
           ],
           weaknesses: [
           aiAnalysisEnabled ? 'AI analysis unavailable' : 'Basic analysis mode',
@@ -293,9 +341,12 @@ export default function PortfolioAnalysis() {
       const { data: { user } } = await supabase.auth.getUser();
       const userName = user?.email || 'Investor';
       
+      // Use aggregated investments for PDF generation
+      const aggregatedInvestments = aggregateInvestmentsBySymbol(investments);
+      
       // Generate PDF blob - now awaiting the async function
       const pdfBlob = await generatePortfolioReport({
-        investments: investments as InvestmentWithData[],
+        investments: aggregatedInvestments as InvestmentWithData[],
         portfolioGrade: portfolioGrade || undefined,
         assetGrades: assetGrades || [],
         userName,
