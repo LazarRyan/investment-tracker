@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import StockTicker from './components/StockTicker';
+import Cookies from 'js-cookie';
 
 const quotes = [
   {
@@ -19,28 +20,43 @@ export default function Home() {
 
   const handleGuestMode = async () => {
     try {
-      const response = await fetch('/api/guest', { method: 'POST' });
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('Failed to set up guest mode:', error);
-        // You might want to show an error message to the user here
-        return;
-      }
+      const response = await fetch('/api/guest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // Set a client-side cookie for immediate access
-      document.cookie = `guest_mode=true;path=/;max-age=86400`;
-      
-      // Get the guest ID from the response
-      const data = await response.json();
-      if (data.guestId) {
-        document.cookie = `guest_id=${data.guestId};path=/;max-age=86400`;
+      if (response.ok) {
+        const data = await response.json();
+        
+        // The API now sets cookies via Set-Cookie headers
+        // Wait a moment to ensure cookies are processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify cookies are set
+        const guestMode = Cookies.get('guest_mode');
+        const guestId = Cookies.get('guest_id');
+        
+        if (guestMode === 'true' && guestId) {
+          // Navigate to dashboard
+          router.push('/dashboard');
+        } else {
+          // Fallback: set cookies manually if they weren't set by the server
+          console.warn('Server cookies not detected, setting manually');
+          Cookies.set('guest_mode', 'true', { expires: 1 });
+          if (data.guestId) {
+            Cookies.set('guest_id', data.guestId, { expires: 1 });
+          }
+          router.push('/dashboard');
+        }
+      } else {
+        console.error('Failed to create guest session');
+        // Show error message to user
       }
-      
-      // Navigate to the dashboard
-      router.push('/dashboard');
     } catch (error) {
-      console.error('Failed to set up guest mode:', error);
-      // You might want to show an error message to the user here
+      console.error('Error setting up guest mode:', error);
+      // Show error message to user
     }
   };
 

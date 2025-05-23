@@ -34,16 +34,23 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('Dashboard auth check - User:', user ? 'authenticated' : 'not authenticated');
+        
         if (user) {
           setUser(user);
           setIsGuest(false);
           Cookies.remove('guest_mode');
         } else {
           const isGuestMode = Cookies.get('guest_mode') === 'true';
-          if (isGuestMode) {
+          const guestId = Cookies.get('guest_id');
+          console.log('Dashboard auth check - Guest mode:', isGuestMode, 'Guest ID:', guestId);
+          
+          if (isGuestMode && guestId) {
+            console.log('Setting guest mode active');
             setIsGuest(true);
             Cookies.set('guest_mode', 'true', { expires: 1 });
           } else {
+            console.log('No valid authentication or guest mode, redirecting to sign-in');
             router.push('/auth/signin');
             return;
           }

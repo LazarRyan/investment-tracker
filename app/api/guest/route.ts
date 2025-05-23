@@ -1,60 +1,59 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    // Generate a new guest ID
+    const supabase = await createServerSupabaseClient();
+    
+    // Generate a unique guest ID
     const guestId = uuidv4();
     
-    // Insert into guest_sessions table
-    const { error: sessionError } = await supabase
+    // Create a guest session in the database
+    const { error } = await supabase
       .from('guest_sessions')
-      .upsert({
+      .insert({
         guest_id: guestId,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
       });
 
-    if (sessionError) {
-      console.error('Error creating guest session:', sessionError);
-      return NextResponse.json({ error: 'Failed to create guest session' }, { status: 500 });
+    if (error) {
+      console.error('Error creating guest session:', error);
+      return NextResponse.json(
+        { error: 'Failed to create guest session' },
+        { status: 500 }
+      );
     }
 
-    // Set cookies with appropriate options for edge runtime
+    // Create response with redirect
+    const response = NextResponse.json(
+      { 
+        success: true, 
+        message: 'Guest session created successfully',
+        redirect: '/dashboard',
+        guestId: guestId // Include guestId as fallback
+      },
+      { status: 200 }
+    );
+
+    // Set cookies with proper options
     const cookieOptions = {
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      path: '/',
-      sameSite: 'lax' as const,
+      httpOnly: false, // Allow client-side access
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      maxAge: 24 * 60 * 60, // 24 hours in seconds
+      path: '/'
     };
 
-    // Create a new response
-    const response = NextResponse.json({ 
-      success: true, 
-      guestId,
-      redirectTo: '/dashboard'
-    });
-
-    // Set cookies on the response
     response.cookies.set('guest_mode', 'true', cookieOptions);
     response.cookies.set('guest_id', guestId, cookieOptions);
 
     return response;
   } catch (error) {
-    console.error('Error in guest mode setup:', error);
-    return NextResponse.json({ 
-      error: 'Failed to set up guest mode',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Guest session creation error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 
