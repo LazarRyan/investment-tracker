@@ -51,9 +51,17 @@ export async function GET(req: Request) {
 
       const adminSupabase = createClient(supabaseUrl, supabaseKey);
       
-      // Get all unique symbols using Array.filter instead of Set spread
+      // Normalize symbols to match how historical_prices stores data:
+      // - stocks/ETFs in uppercase
+      // - supported crypto symbols in lowercase coin ids
+      const cryptoSymbols = new Set(['bitcoin', 'ethereum', 'tether', 'cardano', 'dogecoin']);
+      const normalizeSymbol = (symbol: string) => {
+        const trimmed = (symbol || '').trim();
+        return cryptoSymbols.has(trimmed.toLowerCase()) ? trimmed.toLowerCase() : trimmed.toUpperCase();
+      };
+
       const symbolsSet = new Set<string>();
-      investments.forEach(inv => symbolsSet.add(inv.symbol));
+      investments.forEach(inv => symbolsSet.add(normalizeSymbol(inv.symbol)));
       const symbols = Array.from(symbolsSet);
       
       // Fetch the latest market data for all symbols
@@ -88,7 +96,7 @@ export async function GET(req: Request) {
       const uniqueSymbols = new Set<string>();
 
       investments.forEach(investment => {
-        const latestData = latestPriceBySymbol.get(investment.symbol);
+        const latestData = latestPriceBySymbol.get(normalizeSymbol(investment.symbol));
         const currentPrice = latestData?.price || investment.purchase_price;
         
         uniqueSymbols.add(investment.symbol);

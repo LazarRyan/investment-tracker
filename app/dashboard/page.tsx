@@ -119,14 +119,22 @@ export default function Dashboard() {
       // Fetch market data with cache-busting timestamp
       const timestamp = new Date().getTime();
       const marketResponse = await internalFetch(`/api/market-data?_t=${timestamp}`);
-      if (marketResponse.data) {
+      if (!marketResponse.ok) {
+        throw new Error(marketResponse.error || 'Failed to fetch market data');
+      }
+      if (Array.isArray(marketResponse.data)) {
         setMarketData(marketResponse.data);
         localStorage.setItem('marketDataLastUpdated', new Date().toISOString());
+      } else {
+        setMarketData([]);
       }
       
       // Fetch portfolio summary
       const summaryResponse = await internalFetch('/api/portfolio/summary');
-      if (summaryResponse.data) {
+      if (!summaryResponse.ok) {
+        throw new Error(summaryResponse.error || 'Failed to fetch portfolio summary');
+      }
+      if (summaryResponse.data && typeof summaryResponse.data === 'object') {
         setPortfolioSummary(summaryResponse.data);
       }
       

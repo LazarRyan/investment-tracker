@@ -31,12 +31,35 @@ export async function GET() {
       }
 
       const investmentIds = investments.map(inv => inv.id);
-      
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .in('investment_id', investmentIds)
-        .order('date', { ascending: false });
+
+      let data: any[] | null = [];
+      let error: any = null;
+
+      if (investmentIds.length > 0) {
+        const result = await supabase
+          .from('transactions')
+          .select('*')
+          .in('investment_id', investmentIds)
+          .order('date', { ascending: false });
+        data = result.data;
+        error = result.error;
+      } else {
+        // Fallback for users with historical transactions but no active investments.
+        // Some schemas include user_id directly on transactions.
+        const fallback = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+
+        // If user_id column is unavailable, return empty instead of 500.
+        if (error) {
+          console.warn('Transactions user_id fallback query failed:', error);
+          return NextResponse.json([]);
+        }
+      }
 
       if (error) {
         console.error('Database error:', error);

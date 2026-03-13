@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Investment } from '../api/investments/route';
+import type { Investment } from '../api/investments/route';
 import SellInvestmentForm from './SellInvestmentForm';
 import { internalFetch } from '../../utils/api';
 import { debounceAsync } from '../../utils/debounce';
