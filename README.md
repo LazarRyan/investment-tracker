@@ -34,6 +34,12 @@ This application uses a microservices architecture with three main components:
 - **Features**: Individual and portfolio-level analysis
 - **Deployment**: Railway
 
+### Market Refresh Cron (Node.js)
+- **Technology**: Short-lived Node.js worker
+- **Purpose**: Calls market-service `/api/refresh` on a Railway cron schedule
+- **Features**: Hourly refresh (UTC by default), exits after each run
+- **Deployment**: Railway
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -83,7 +89,7 @@ cp .env.local.example .env.local
 # SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 # MARKET_SERVICE_URL=your_market_service_url
 # ANALYSIS_SERVICE_URL=your_analysis_service_url
-# API_KEY=your_api_key
+# ANALYSIS_SERVICE_API_KEY=your_api_key
 
 # Run the development server
 npm run dev
@@ -106,8 +112,8 @@ cp .env.example .env
 # Configure your environment variables in .env
 # FMP_API_KEY=your_fmp_api_key
 # SUPABASE_URL=your_supabase_url
-# SUPABASE_KEY=your_supabase_service_role_key
-# API_KEY=your_api_key
+# SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# ANALYSIS_SERVICE_API_KEY=your_api_key
 
 # Run the service
 python main.py
@@ -125,7 +131,7 @@ cp .env.example .env
 
 # Configure your environment variables in .env
 # OPENAI_API_KEY=your_openai_api_key
-# API_KEY=your_api_key
+# ANALYSIS_SERVICE_API_KEY=your_api_key
 # ALLOWED_ORIGIN=http://localhost:3000
 
 # Run the service
@@ -147,8 +153,9 @@ Run the SQL scripts in the `sql/` directory in your Supabase dashboard:
 ### Railway (Microservices)
 1. Connect your GitHub repository to Railway
 2. Create separate services for market-service and analysis-service
-3. Configure environment variables for each service
-4. Deploy automatically on push
+3. Create a third service from `market-refresh-cron/` for scheduled refreshes
+4. Configure environment variables for each service
+5. Deploy automatically on push
 
 ### Environment Variables
 
@@ -159,15 +166,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 MARKET_SERVICE_URL=https://your-market-service.railway.app
 ANALYSIS_SERVICE_URL=https://your-analysis-service.railway.app
-API_KEY=your_secure_api_key
+ANALYSIS_SERVICE_API_KEY=your_secure_api_key
 ```
 
 #### Market Service (.env)
 ```env
 FMP_API_KEY=your_fmp_api_key
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_service_role_key
-API_KEY=your_secure_api_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+ANALYSIS_SERVICE_API_KEY=your_secure_api_key
 PORT=8000
 NODE_ENV=production
 ```
@@ -175,18 +182,25 @@ NODE_ENV=production
 #### Analysis Service (.env)
 ```env
 OPENAI_API_KEY=your_openai_api_key
-API_KEY=your_secure_api_key
+ANALYSIS_SERVICE_API_KEY=your_secure_api_key
 ALLOWED_ORIGIN=https://your-app.vercel.app
 PORT=3001
 NODE_ENV=production
 ```
 
+#### Market Refresh Cron Service (.env)
+```env
+MARKET_SERVICE_URL=https://your-market-service.railway.app
+ANALYSIS_SERVICE_API_KEY=your_secure_api_key
+```
+
 ## 📊 API Endpoints
 
 ### Market Data Service
-- `GET /api/stocks` - Get all market data
-- `GET /api/stocks?symbol=AAPL` - Get specific stock data
-- `GET /api/health` - Health check
+- `GET /api/prices` - Get all market data
+- `GET /api/prices?symbol=AAPL` - Get specific market symbol data
+- `POST /api/refresh` - Fetch and write latest market data to Supabase
+- `GET /health` - Health check
 - `GET /api/historical/{symbol}` - Get historical data
 
 ### Analysis Service
@@ -284,10 +298,12 @@ For support and questions:
 2. **Analysis not working**: Verify OpenAI API key and credits
 3. **Authentication issues**: Check Supabase configuration
 4. **CORS errors**: Verify allowed origins in microservice configurations
+5. **Supabase not updating from Railway**: Ensure market service env vars are `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANALYSIS_SERVICE_API_KEY`, then call `POST /api/refresh` with `x-api-key`
+6. **Data updates stopped unexpectedly**: Check `market-refresh-cron` deployment logs and confirm cron schedule is enabled
 
 ### Health Checks
 - Main app: Check Vercel deployment logs
-- Market service: `GET /api/health`
+- Market service: `GET /health`, then `POST /api/refresh`
 - Analysis service: `GET /health`
 - Database: Check Supabase dashboard
 

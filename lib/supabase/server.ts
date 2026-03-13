@@ -55,13 +55,17 @@ export async function getAuthStatus(): Promise<AuthStatus> {
     }
     userId = guestId;
 
-    // Create or update guest session
-    await supabase
-      .from('guest_sessions')
-      .upsert({
-        guest_id: guestId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      });
+    // Create or update guest session (best effort; do not break auth flow on DB policy issues)
+    try {
+      await supabase
+        .from('guest_sessions')
+        .upsert({
+          guest_id: guestId,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        });
+    } catch (guestSessionError) {
+      console.warn('Guest session upsert skipped:', guestSessionError);
+    }
   }
 
   return {

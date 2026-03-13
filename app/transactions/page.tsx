@@ -27,9 +27,13 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     try {
       const response = await internalFetch('/api/transactions');
-      if (response.data) {
+      if (!response.ok) {
+        throw new Error(response.error || 'Failed to fetch transactions');
+      }
+      if (Array.isArray(response.data)) {
         return response.data;
       }
+      // Defensive fallback when API response shape is unexpected
       return [];
     } catch (error) {
       console.error('Error fetching transactions:', error);

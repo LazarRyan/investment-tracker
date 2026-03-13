@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Investment } from '../../api/investments/route';
+import type { Investment } from '../../api/investments/route';
 import { createClient } from '@/lib/supabase/client';
 import { generatePortfolioReport, InvestmentWithData } from '../../../utils/pdf-generator';
 

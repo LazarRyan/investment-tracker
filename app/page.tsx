@@ -39,8 +39,8 @@ export default function Home() {
         const guestId = Cookies.get('guest_id');
         
         if (guestMode === 'true' && guestId) {
-          // Navigate to dashboard
-          router.push('/dashboard');
+          // Use full navigation to ensure middleware sees fresh cookies
+          window.location.assign('/dashboard');
         } else {
           // Fallback: set cookies manually if they weren't set by the server
           console.warn('Server cookies not detected, setting manually');
@@ -48,18 +48,18 @@ export default function Home() {
           if (data.guestId) {
             Cookies.set('guest_id', data.guestId, { expires: 1 });
           }
-          router.push('/dashboard');
+          window.location.assign('/dashboard');
         }
       } else {
         console.error('Failed to create guest session, falling back to client-side cookies');
         Cookies.set('guest_mode', 'true', { expires: 1 });
-        router.push('/dashboard');
+        window.location.assign('/dashboard');
       }
     } catch (error) {
       console.error('Error setting up guest mode:', error);
       // API unreachable — set cookies client-side and navigate anyway
       Cookies.set('guest_mode', 'true', { expires: 1 });
-      router.push('/dashboard');
+      window.location.assign('/dashboard');
     }
   };
 

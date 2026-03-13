@@ -1,0 +1,9 @@
+{
+  "name": "market-refresh-cron",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Railway cron worker that triggers market-service refresh endpoint",
+  "scripts": {
+    "start": "node run-refresh.js"
+  }
+}
