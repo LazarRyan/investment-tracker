@@ -33,11 +33,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# analysis service
-analysis-service/
 
-# market service
-market-service/
 
 # local netlify folder
 .netlify
@@ -67,3 +63,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg 
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# Service node_modules
+analysis-service/node_modules/
+analysis-service/.env
+market-service/.env
