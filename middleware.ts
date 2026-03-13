@@ -24,6 +24,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // If Supabase is not configured, redirect non-guest users to sign in
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    const redirectUrl = new URL('/auth/signin', request.url);
+    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { session }, error } = await supabase.auth.getSession();
@@ -37,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
     // Check if email is verified
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user?.email_confirmed_at) {
       // Redirect to email verification page if email is not verified
       return NextResponse.redirect(new URL('/auth/verify-email', request.url));

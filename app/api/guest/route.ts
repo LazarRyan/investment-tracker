@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    
     // Generate a unique guest ID
     const guestId = uuidv4();
-    
-    // Create a guest session in the database
-    const { error } = await supabase
-      .from('guest_sessions')
-      .insert({
-        guest_id: guestId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
-      });
 
-    if (error) {
-      console.error('Error creating guest session:', error);
-      return NextResponse.json(
-        { error: 'Failed to create guest session' },
-        { status: 500 }
-      );
+    // Optionally persist to DB — not required for guest mode to function
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseKey) {
+        const { createServerSupabaseClient } = await import('@/lib/supabase/server');
+        const supabase = await createServerSupabaseClient();
+        await supabase.from('guest_sessions').insert({
+          guest_id: guestId,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        });
+      }
+    } catch (dbError) {
+      // Non-fatal: guest mode works without DB persistence
+      console.warn('Guest session DB insert skipped:', dbError);
     }
 
     // Create response with redirect
