@@ -7,7 +7,7 @@ import { internalFetch } from '../../utils/api';
 import { debounceAsync } from '../../utils/debounce';
 
 interface MarketData {
-  price: number;
+  price: number | null;
   change: number;
   is_market_hours?: boolean;
 }
@@ -89,7 +89,7 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
     const updatedInvestments = await Promise.all(
       investments.map(async (investment) => {
         const marketData = await fetchMarketData(investment.symbol);
-        if (marketData) {
+        if (marketData && typeof marketData.price === 'number') {
           const currentPrice = marketData.price;
           const totalValue = currentPrice * investment.shares;
           const purchaseValue = investment.purchase_price * investment.shares;
@@ -404,21 +404,21 @@ export default function InvestmentPortfolio({ onAddClick, onDataChange }: Invest
                               {investment.purchase_date ? new Date(investment.purchase_date).toLocaleDateString() : 'N/A'}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {investment.currentPrice ? (
+                              {typeof investment.currentPrice === 'number' ? (
                                 <>${investment.currentPrice.toFixed(2)}</>
                               ) : (
                                 <span className="text-gray-400">Loading...</span>
                               )}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {investment.totalValue ? (
+                              {typeof investment.totalValue === 'number' ? (
                                 <>${investment.totalValue.toFixed(2)}</>
                               ) : (
                                 <span className="text-gray-400">Loading...</span>
                               )}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
-                              {investment.gainLoss && investment.gainLossPercentage ? (
+                              {typeof investment.gainLoss === 'number' && typeof investment.gainLossPercentage === 'number' ? (
                                 <div className={investment.gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
                                   ${Math.abs(investment.gainLoss).toFixed(2)} ({investment.gainLossPercentage >= 0 ? '+' : ''}{investment.gainLossPercentage.toFixed(2)}%)
                                 </div>
