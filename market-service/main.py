@@ -39,7 +39,7 @@ def config_status():
     }
 
 # Stock symbols to track
-STOCK_SYMBOLS = ["SPY", "DIA", "QQQ", "VGK", "EWJ", "EWG",
+STOCK_SYMBOLS = ["SPY", "DIA", "QQQ", "VGK", "EWJ", "EWG", "VOO",
                   "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "JPM", "V"]
 
 # Crypto coin IDs (CoinGecko)

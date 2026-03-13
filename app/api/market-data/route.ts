@@ -31,6 +31,46 @@ const CRYPTO = {
   "dogecoin": "Dogecoin"
 };
 
+async function getLiveStockFallback(symbol: string) {
+  try {
+    // Stooq daily CSV fallback for symbols missing from historical_prices.
+    const url = `https://stooq.com/q/d/l/?s=${symbol.toLowerCase()}.us&i=d`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return null;
+
+    const closes: number[] = [];
+    for (const row of lines.slice(1)) {
+      const parts = row.split(',');
+      if (parts.length < 5) continue;
+      const close = parts[4];
+      if (!close || close === 'N/D') continue;
+      const parsed = Number(close);
+      if (!Number.isFinite(parsed)) continue;
+      closes.push(parsed);
+    }
+    if (closes.length === 0) return null;
+
+    const current = closes[closes.length - 1];
+    const prev = closes.length >= 2 ? closes[closes.length - 2] : current;
+    const change = prev ? ((current - prev) / prev) * 100 : 0;
+
+    return {
+      price: current,
+      change,
+      is_market_hours: false,
+      timestamp: new Date().toISOString(),
+      type: 'stock',
+    };
+  } catch (error) {
+    console.error(`Live stock fallback failed for ${symbol}:`, error);
+    return null;
+  }
+}
+
 async function getLatestHistoricalData(symbol: string) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -172,9 +212,24 @@ export async function GET(request: Request) {
     if (symbol) {
       console.log(`Fetching data for symbol: ${symbol}`);
       const historicalData = await getLatestHistoricalData(symbol);
-      if (historicalData) {
+      if (historicalData && typeof historicalData.price === 'number') {
         console.log(`Found historical data for ${symbol}:`, historicalData);
         return new Response(JSON.stringify(historicalData), { headers });
+      }
+
+      // If historical data is missing, fetch a live quote fallback so
+      // holdings still show a current price even before backfill.
+      const live = await getLiveStockFallback(symbol);
+      if (live) {
+        const isCrypto = Object.keys(CRYPTO).includes(symbol.toLowerCase());
+        const isIndex = Object.keys(INDICES).includes(symbol.toUpperCase());
+        return new Response(JSON.stringify({
+          symbol: isCrypto ? CRYPTO[symbol.toLowerCase()] :
+                 isIndex ? INDICES[symbol.toUpperCase()] :
+                 symbol.toUpperCase(),
+          ...live,
+          change: live.change
+        }), { headers });
       }
 
       console.log(`No data available for ${symbol}`);

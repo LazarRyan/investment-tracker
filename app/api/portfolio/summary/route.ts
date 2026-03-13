@@ -12,6 +12,38 @@ interface Investment {
   purchase_price: number;
 }
 
+async function getLiveStockFallback(symbol: string): Promise<{ price: number; change_percentage: number } | null> {
+  try {
+    const url = `https://stooq.com/q/d/l/?s=${symbol.toLowerCase()}.us&i=d`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return null;
+
+    const closes: number[] = [];
+    for (const row of lines.slice(1)) {
+      const parts = row.split(',');
+      if (parts.length < 5) continue;
+      const close = parts[4];
+      if (!close || close === 'N/D') continue;
+      const parsed = Number(close);
+      if (!Number.isFinite(parsed)) continue;
+      closes.push(parsed);
+    }
+    if (closes.length === 0) return null;
+
+    const current = closes[closes.length - 1];
+    const prev = closes.length >= 2 ? closes[closes.length - 2] : current;
+    const changePct = prev ? ((current - prev) / prev) * 100 : 0;
+    return { price: current, change_percentage: changePct };
+  } catch (error) {
+    console.error(`Live fallback failed for ${symbol}:`, error);
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   return withAuth(async (supabase, userId) => {
     try {
@@ -95,26 +127,39 @@ export async function GET(req: Request) {
       // For now, we'll just count unique symbols as a proxy
       const uniqueSymbols = new Set<string>();
 
-      investments.forEach(investment => {
-        const latestData = latestPriceBySymbol.get(normalizeSymbol(investment.symbol));
+      const liveCache = new Map<string, { price: number; change_percentage: number } | null>();
+      for (const investment of investments) {
+        const normalized = normalizeSymbol(investment.symbol);
+        let latestData = latestPriceBySymbol.get(normalized);
+
+        if (!latestData) {
+          if (!liveCache.has(normalized)) {
+            liveCache.set(normalized, await getLiveStockFallback(normalized));
+          }
+          const live = liveCache.get(normalized);
+          if (live) {
+            latestData = live;
+          }
+        }
+
         const currentPrice = latestData?.price || investment.purchase_price;
-        
+
         uniqueSymbols.add(investment.symbol);
-        
+
         const investmentValue = currentPrice * investment.shares;
         const investmentCost = investment.purchase_price * investment.shares;
         const investmentGainLoss = investmentValue - investmentCost;
-        
+
         portfolioValue += investmentValue;
         totalInvested += investmentCost;
         totalGainLoss += investmentGainLoss;
-        
-        // Calculate day change based on the change percentage from historical data
-        if (latestData) {
+
+        // Calculate day change based on percentage where available.
+        if (latestData && typeof latestData.change_percentage === 'number') {
           const dailyChange = (latestData.change_percentage / 100) * investmentValue;
           dayChange += dailyChange;
         }
-      });
+      }
 
       const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
       const dayChangePercentage = portfolioValue > 0 ? (dayChange / portfolioValue) * 100 : 0;
