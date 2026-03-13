@@ -195,12 +195,10 @@ export async function GET(request: Request) {
       return new Response(JSON.stringify(historicalData), { headers });
     }
 
-    // If no data available at all
+    // No data in DB yet — return empty array so the UI shows a graceful empty state
+    // instead of an error banner. Seed data by calling POST /api/refresh on the market-service.
     console.log('No market data available');
-    return new Response(JSON.stringify({ error: 'No market data available' }), {
-      status: 404,
-      headers
-    });
+    return new Response(JSON.stringify([]), { headers });
   } catch (error) {
     console.error('Error in GET handler:', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {

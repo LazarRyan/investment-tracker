@@ -51,12 +51,15 @@ export default function Home() {
           router.push('/dashboard');
         }
       } else {
-        console.error('Failed to create guest session');
-        // Show error message to user
+        console.error('Failed to create guest session, falling back to client-side cookies');
+        Cookies.set('guest_mode', 'true', { expires: 1 });
+        router.push('/dashboard');
       }
     } catch (error) {
       console.error('Error setting up guest mode:', error);
-      // Show error message to user
+      // API unreachable — set cookies client-side and navigate anyway
+      Cookies.set('guest_mode', 'true', { expires: 1 });
+      router.push('/dashboard');
     }
   };
 

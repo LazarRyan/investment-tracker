@@ -19,8 +19,9 @@ export async function middleware(request: NextRequest) {
   const isGuestMode = request.cookies.get('guest_mode')?.value === 'true';
   const guestId = request.cookies.get('guest_id')?.value;
 
-  // If user is in valid guest mode, allow access to dashboard
-  if (isGuestMode && guestId && request.nextUrl.pathname.startsWith('/dashboard')) {
+  // If user is in valid guest mode, allow access to guest-accessible routes
+  const guestAccessiblePaths = ['/dashboard', '/portfolio', '/transactions', '/stock-screener'];
+  if (isGuestMode && guestId && guestAccessiblePaths.some(p => request.nextUrl.pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

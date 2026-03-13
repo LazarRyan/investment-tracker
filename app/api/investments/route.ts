@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { cookies } from 'next/headers';
 import { withAuth } from '@/utils/server-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -51,6 +52,15 @@ export async function GET() {
 
 // POST a new investment
 export async function POST(request: Request) {
+  // Guest users cannot persist investments — return a clear message before withAuth runs
+  const cookieStore = cookies();
+  if (cookieStore.get('guest_mode')?.value === 'true') {
+    return NextResponse.json(
+      { error: 'Sign in to save investments', guestMode: true },
+      { status: 403 }
+    );
+  }
+
   return withAuth(async (supabase: SupabaseClient, userId: string, req: Request) => {
     try {
       const investment = await req.json();

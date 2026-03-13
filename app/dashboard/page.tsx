@@ -193,7 +193,7 @@ export default function Dashboard() {
 
   const handleStockScreenerClick = () => {
     handleButtonClick('stockScreener', async () => {
-      window.open('https://finance.yahoo.com/screener/new', '_blank');
+      router.push('/stock-screener');
     });
   };
 

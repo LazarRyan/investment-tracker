@@ -46,6 +46,9 @@ export default function AddInvestmentForm({ onSuccess, onCancel }: AddInvestment
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (errorData.guestMode) {
+          throw new Error('You are in guest mode. Sign in to save investments.');
+        }
         throw new Error(errorData.error || 'Failed to add investment');
       }
 
